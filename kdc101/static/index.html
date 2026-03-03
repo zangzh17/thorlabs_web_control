@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,9 +18,11 @@
             border-bottom: 1px solid #2a2d3a;
         }
         .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+        .header h1 small { font-size: 12px; color: #888; font-weight: 400; margin-left: 8px; }
+        .header-status { display: flex; gap: 16px; align-items: center; font-size: 13px; }
         .status-dot {
             width: 10px; height: 10px; border-radius: 50%;
-            display: inline-block; margin-right: 8px;
+            display: inline-block; margin-right: 4px;
         }
         .status-dot.on { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
         .status-dot.off { background: #666; }
@@ -58,15 +60,30 @@
         .btn-success:hover { background: #16a34a; }
         .btn-danger { background: #ef4444; color: #fff; }
         .btn-danger:hover { background: #dc2626; }
-        .btn-warning { background: #f59e0b; color: #fff; }
-        .btn-warning:hover { background: #d97706; }
         .btn-secondary { background: #374151; color: #e0e0e0; }
         .btn-secondary:hover { background: #4b5563; }
+        .btn-warning { background: #f59e0b; color: #000; }
+        .btn-warning:hover { background: #d97706; }
         .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+        .btn-block { width: 100%; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
 
-        select, input {
+        .btn-estop {
+            background: #dc2626;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            padding: 10px 16px;
+            width: 100%;
+            border: 2px solid #ef4444;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn-estop:hover { background: #b91c1c; border-color: #dc2626; }
+
+        select, input[type="number"], input[type="text"] {
             background: #111318;
             border: 1px solid #2a2d3a;
             color: #e0e0e0;
@@ -80,60 +97,49 @@
         .field { margin-bottom: 10px; }
         .field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
 
-        .position-display {
+        .main-area { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+        .position-display-large {
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 24px;
+            gap: 16px;
+            padding: 24px 16px;
         }
         .position-value {
             font-size: 48px;
             font-weight: 700;
             font-family: 'Consolas', 'Courier New', monospace;
-            color: #3b82f6;
-            text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            text-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
         }
-        .position-unit { font-size: 18px; color: #888; margin-top: 4px; }
+        .position-unit { font-size: 20px; color: #888; }
 
         .status-indicators {
             display: flex;
-            gap: 12px;
-            margin-top: 12px;
-            flex-wrap: wrap;
             justify-content: center;
+            gap: 12px;
+            padding: 0 16px 12px;
         }
-        .indicator {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            color: #666;
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .indicator .dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: #333;
-        }
-        .indicator .dot.active { background: #4caf50; box-shadow: 0 0 4px #4caf50; }
-        .indicator .dot.warn { background: #f59e0b; box-shadow: 0 0 4px #f59e0b; }
-        .indicator .dot.error { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
-
-        .main-area { display: flex; flex-direction: column; gap: 12px; }
+        .badge-active { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-inactive { background: rgba(100, 100, 100, 0.15); color: #666; border: 1px solid rgba(100, 100, 100, 0.3); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-moving { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
 
         .chart-container {
             flex: 1;
-            min-height: 250px;
+            min-height: 300px;
             position: relative;
         }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            font-size: 12px;
-        }
-        .info-grid .label { color: #666; }
-        .info-grid .value { color: #ccc; text-align: right; font-family: monospace; }
 
         .log-box {
             background: #111318;
@@ -142,40 +148,60 @@
             padding: 8px 12px;
             font-family: monospace;
             font-size: 12px;
-            max-height: 120px;
+            max-height: 150px;
             overflow-y: auto;
             color: #888;
         }
         .log-box .log-error { color: #ef4444; }
         .log-box .log-ok { color: #22c55e; }
 
-        .jog-controls {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            justify-content: center;
+        .notice {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 8px;
         }
-        .jog-btn {
-            width: 56px; height: 44px;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .notice strong { color: #e2e8f0; }
+        .notice a { color: #60a5fa; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            font-size: 12px;
         }
-        .stop-btn {
-            width: 80px; height: 44px;
-            font-size: 13px;
-            font-weight: 700;
+        .info-grid .label { color: #666; }
+        .info-grid .value { color: #ccc; text-align: right; font-family: monospace; overflow: hidden; text-overflow: ellipsis; }
+
+        .motion-group {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+        .motion-group .group-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+            margin-bottom: 6px;
         }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>KDC101 DC Servo Controller</h1>
-    <div id="statusBar">
-        <span class="status-dot off" id="statusDot"></span>
-        <span id="statusText">Disconnected</span>
+    <h1>KDC101 DC Servo Controller <small>WebUSB</small></h1>
+    <div class="header-status">
+        <span>
+            <span class="status-dot off" id="kdcDot"></span>
+            <span id="connectionStatusText">Disconnected</span>
+        </span>
     </div>
 </div>
 
@@ -184,113 +210,114 @@
         <!-- Device Panel -->
         <div class="panel">
             <h3>Device</h3>
-            <div class="field">
-                <label>APT Device (D2XX)</label>
-                <select id="deviceSelect"><option value="">-- Scan first --</option></select>
+            <div class="notice" id="kdcWebusbNotice">
+                <strong>Requires Chrome/Edge.</strong> WinUSB driver via
+                <a href="https://zadig.akeo.ie/" target="_blank">Zadig</a> needed on Windows
+                (replace FTDI driver with WinUSB for the KDC101 device).
             </div>
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="scanDevices()">Scan</button>
-                <button class="btn btn-success" id="btnConnect" onclick="connectDevice()">Connect</button>
-                <button class="btn btn-danger" id="btnDisconnect" onclick="disconnectDevice()" disabled>Disconnect</button>
+                <button class="btn btn-success" id="btnKdcConnect" onclick="connectDevice()">Connect USB</button>
+                <button class="btn btn-danger" id="btnKdcDisconnect" onclick="disconnectDevice()" disabled>Disconnect</button>
             </div>
-            <div id="deviceInfo" style="margin-top: 12px; display: none;">
+            <div id="kdcInfoPanel" style="margin-top: 12px; display: none;">
                 <div class="info-grid">
-                    <span class="label">Model</span><span class="value" id="infoModel">-</span>
-                    <span class="label">S/N</span><span class="value" id="infoSerial">-</span>
-                    <span class="label">Firmware</span><span class="value" id="infoFirmware">-</span>
-                    <span class="label">HW Version</span><span class="value" id="infoHwVer">-</span>
+                    <span class="label">Serial</span><span class="value" id="kdcInfoSerial">-</span>
+                    <span class="label">Model</span><span class="value" id="kdcInfoModel">-</span>
+                    <span class="label">Firmware</span><span class="value" id="kdcInfoFW">-</span>
                 </div>
             </div>
         </div>
 
-        <!-- Motion Panel -->
+        <!-- Motion Control Panel -->
         <div class="panel">
             <h3>Motion Control</h3>
             <div class="btn-row" style="margin-top: 0;">
-                <button class="btn btn-warning" style="flex: 1;" onclick="homeStage()">Home</button>
-                <button class="btn btn-danger stop-btn" onclick="stopMotion()">STOP</button>
+                <button class="btn btn-warning btn-block" onclick="homeStage()">Home</button>
+                <button class="btn btn-danger btn-block" onclick="stopMotion()">Stop</button>
             </div>
 
-            <div class="field" style="margin-top: 12px;">
-                <label>Move Absolute (mm)</label>
-                <div class="btn-row">
-                    <input type="number" id="moveAbsPos" value="5.0" step="0.1">
-                    <button class="btn btn-primary" onclick="moveAbsolute()">Go</button>
-                </div>
-            </div>
-            <div class="field">
-                <label>Move Relative (mm)</label>
-                <div class="btn-row">
-                    <input type="number" id="moveRelDist" value="1.0" step="0.1">
-                    <button class="btn btn-primary" onclick="moveRelative(1)">+ Fwd</button>
-                    <button class="btn btn-primary" onclick="moveRelative(-1)">- Rev</button>
+            <!-- Absolute Move -->
+            <div class="motion-group">
+                <div class="group-label">Absolute Move</div>
+                <div class="btn-row" style="margin-top:0;">
+                    <input type="number" id="moveAbsPos" value="0" step="0.001" style="flex:1;">
+                    <button class="btn btn-primary btn-sm" onclick="moveAbsolute()">Go</button>
                 </div>
             </div>
 
-            <div style="margin-top: 12px;">
-                <label style="font-size: 12px; color: #888; margin-bottom: 8px; display: block;">Jog</label>
-                <div class="jog-controls">
-                    <button class="btn btn-secondary jog-btn" onclick="jogReverse()" title="Jog Reverse">&larr;</button>
-                    <button class="btn btn-danger stop-btn" onclick="stopMotionImmediate()">E-STOP</button>
-                    <button class="btn btn-secondary jog-btn" onclick="jogForward()" title="Jog Forward">&rarr;</button>
+            <!-- Relative Move -->
+            <div class="motion-group">
+                <div class="group-label">Relative Move</div>
+                <div class="btn-row" style="margin-top:0;">
+                    <button class="btn btn-secondary btn-sm" onclick="moveRelRev()">&#9664;</button>
+                    <input type="number" id="moveRelDist" value="1.0" step="0.1" min="0.001" style="flex:1;">
+                    <button class="btn btn-secondary btn-sm" onclick="moveRelFwd()">&#9654;</button>
                 </div>
+            </div>
+
+            <!-- Jog -->
+            <div class="motion-group">
+                <div class="group-label">Jog</div>
+                <div class="btn-row" style="margin-top:0;">
+                    <button class="btn btn-secondary btn-sm btn-block" onclick="jogReverse()">&#9664; Reverse</button>
+                    <button class="btn btn-secondary btn-sm btn-block" onclick="jogForward()">Forward &#9654;</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <button class="btn btn-estop" onclick="stopImmediate()">E-STOP</button>
             </div>
         </div>
 
-        <!-- Config Panel -->
+        <!-- Configuration Panel -->
         <div class="panel">
             <h3>Configuration</h3>
             <div class="field">
-                <label>Max Velocity (mm/s)</label>
-                <input type="number" id="cfgVelocity" value="10.0" step="0.1">
+                <label>Encoder Counts/mm</label>
+                <input type="number" id="cfgCountsPerMm" value="34555" step="1" min="1">
             </div>
             <div class="field">
-                <label>Acceleration (mm/s2)</label>
-                <input type="number" id="cfgAccel" value="10.0" step="0.1">
+                <label>Velocity (mm/s)</label>
+                <input type="number" id="cfgVelocity" value="2.0" step="0.1" min="0.01">
             </div>
-            <div class="btn-row">
-                <button class="btn btn-primary" style="flex:1;" onclick="setVelocityParams()">Apply</button>
-                <button class="btn btn-secondary" onclick="refreshVelocityParams()">Refresh</button>
-            </div>
-
-            <div class="field" style="margin-top: 12px;">
-                <label>Encoder Counts / mm</label>
-                <div class="btn-row">
-                    <input type="number" id="cfgCounts" value="34555" step="1">
-                    <button class="btn btn-primary" onclick="setStageConfig()">Set</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Polling Panel -->
-        <div class="panel">
-            <h3>Position Polling</h3>
             <div class="field">
-                <label>Interval (ms)</label>
-                <input type="number" id="pollInterval" value="100" min="50" step="50">
+                <label>Acceleration (mm/s&sup2;)</label>
+                <input type="number" id="cfgAccel" value="5.0" step="0.1" min="0.01">
             </div>
             <div class="btn-row">
-                <button class="btn btn-success" id="btnPollStart" onclick="startPolling()">Start</button>
-                <button class="btn btn-danger" id="btnPollStop" onclick="stopPolling()" disabled>Stop</button>
-                <button class="btn btn-secondary" onclick="readStatus()">Read Once</button>
+                <button class="btn btn-primary btn-block" onclick="applyVelocity()">Apply</button>
             </div>
-            <div class="btn-row" style="margin-top: 4px;">
-                <button class="btn btn-secondary" style="flex:1;" onclick="clearChart()">Clear Chart</button>
+
+            <hr style="border: none; border-top: 1px solid #2a2d3a; margin: 14px 0;">
+
+            <div class="field">
+                <label>Polling Interval (ms)</label>
+                <input type="number" id="cfgPollInterval" value="200" step="50" min="50">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-success btn-sm btn-block" id="btnStartPoll" onclick="startPolling()">Start Polling</button>
+                <button class="btn btn-danger btn-sm btn-block" id="btnStopPoll" onclick="stopPolling()" disabled>Stop</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary btn-sm btn-block" onclick="readStatusOnce()">Read Once</button>
+                <button class="btn btn-secondary btn-sm btn-block" onclick="clearChart()">Clear Chart</button>
             </div>
         </div>
     </div>
 
+    <!-- Main Area -->
     <div class="main-area">
         <!-- Position Display -->
-        <div class="panel position-display">
-            <div class="position-value" id="positionValue">---</div>
-            <div class="position-unit">mm</div>
-            <div class="status-indicators" id="statusIndicators">
-                <div class="indicator"><span class="dot" id="indHomed"></span>Homed</div>
-                <div class="indicator"><span class="dot" id="indMoving"></span>Moving</div>
-                <div class="indicator"><span class="dot" id="indFwdLim"></span>Fwd Limit</div>
-                <div class="indicator"><span class="dot" id="indRevLim"></span>Rev Limit</div>
-                <div class="indicator"><span class="dot" id="indHoming"></span>Homing</div>
+        <div class="panel">
+            <div class="position-display-large">
+                <span class="position-value" id="positionValue">--.---</span>
+                <span class="position-unit">mm</span>
+            </div>
+            <div class="status-indicators">
+                <span class="status-badge badge-inactive" id="badgeHomed">Homed</span>
+                <span class="status-badge badge-inactive" id="badgeMoving">Moving</span>
+                <span class="status-badge badge-inactive" id="badgeFwdLimit">Fwd Limit</span>
+                <span class="status-badge badge-inactive" id="badgeRevLimit">Rev Limit</span>
             </div>
         </div>
 
@@ -308,68 +335,337 @@
 </div>
 
 <script>
-const API = '';
-let sseSource = null;
-const MAX_POINTS = 500;
+// ============================================================
+//  Helpers
+// ============================================================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// --- Chart ---
-const ctx = document.getElementById('posChart').getContext('2d');
-const chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Position',
-            data: [],
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59,130,246,0.1)',
-            borderWidth: 1.5,
-            pointRadius: 0,
-            fill: true,
-            tension: 0.2,
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        scales: {
-            x: {
-                display: true,
-                ticks: { color: '#555', maxTicksLimit: 8, font: { size: 10 } },
-                grid: { color: '#1e2030' },
-            },
-            y: {
-                display: true,
-                ticks: { color: '#555', font: { size: 10 } },
-                grid: { color: '#1e2030' },
-                title: { display: true, text: 'Position (mm)', color: '#555', font: { size: 11 } },
+// ============================================================
+//  FTDI WebUSB Transport
+// ============================================================
+class FTDIPort {
+    constructor() {
+        this.device = null;
+        this.interfaceNumber = -1;
+        this.endpointIn = -1;
+        this.endpointOut = -1;
+        this._rxBuffer = new Uint8Array(0);
+        this._readerRunning = false;
+    }
+
+    async connect() {
+        this.device = await navigator.usb.requestDevice({
+            filters: [{ vendorId: 0x0403 }]
+        });
+        await this._openDevice();
+    }
+
+    async reconnect() {
+        const devices = await navigator.usb.getDevices();
+        const dev = devices.find(d => d.vendorId === 0x0403);
+        if (!dev) return false;
+        this.device = dev;
+        await this._openDevice();
+        return true;
+    }
+
+    async _openDevice() {
+        await this.device.open();
+        if (this.device.configuration === null) {
+            await this.device.selectConfiguration(1);
+        }
+        const iface = this.device.configuration.interfaces[0];
+        this.interfaceNumber = iface.interfaceNumber;
+        await this.device.claimInterface(this.interfaceNumber);
+        const alt = iface.alternates[0];
+        for (const ep of alt.endpoints) {
+            if (ep.type === 'bulk' && ep.direction === 'in') this.endpointIn = ep.endpointNumber;
+            if (ep.type === 'bulk' && ep.direction === 'out') this.endpointOut = ep.endpointNumber;
+        }
+        await this._configureFTDI();
+        this._rxBuffer = new Uint8Array(0);
+        this._readerRunning = true;
+        this._readLoop();
+    }
+
+    async _configureFTDI() {
+        const ct = { requestType: 'vendor', recipient: 'device' };
+        // Reset
+        await this.device.controlTransferOut({ ...ct, request: 0x00, value: 0x0000, index: 0 });
+        // Set baud rate 115200 (divisor 0x001A)
+        await this.device.controlTransferOut({ ...ct, request: 0x03, value: 0x001A, index: 0 });
+        // 8 data bits, no parity, 1 stop bit
+        await this.device.controlTransferOut({ ...ct, request: 0x04, value: 0x0008, index: 0 });
+        // No flow control
+        await this.device.controlTransferOut({ ...ct, request: 0x02, value: 0x0000, index: 0 });
+        // Purge RX
+        await this.device.controlTransferOut({ ...ct, request: 0x00, value: 0x0001, index: 0 });
+        // Purge TX
+        await this.device.controlTransferOut({ ...ct, request: 0x00, value: 0x0002, index: 0 });
+        // Set DTR
+        await this.device.controlTransferOut({ ...ct, request: 0x01, value: 0x0101, index: 0 });
+        // Set RTS
+        await this.device.controlTransferOut({ ...ct, request: 0x01, value: 0x0202, index: 0 });
+    }
+
+    async write(data) {
+        await this.device.transferOut(this.endpointOut, data);
+    }
+
+    async _readLoop() {
+        while (this._readerRunning) {
+            try {
+                const result = await this.device.transferIn(this.endpointIn, 64);
+                if (result.status === 'ok' && result.data.byteLength > 2) {
+                    // Strip 2-byte FTDI modem status header
+                    const payload = new Uint8Array(result.data.buffer, 2);
+                    const newBuf = new Uint8Array(this._rxBuffer.length + payload.length);
+                    newBuf.set(this._rxBuffer);
+                    newBuf.set(payload, this._rxBuffer.length);
+                    this._rxBuffer = newBuf;
+                }
+            } catch (e) {
+                if (this._readerRunning) break;
             }
-        },
-        plugins: { legend: { display: false } }
+        }
     }
-});
 
-function addChartPoint(timestamp, position) {
-    const t = new Date(timestamp * 1000);
-    const label = t.toLocaleTimeString('en', { hour12: false }) + '.' + String(t.getMilliseconds()).padStart(3, '0');
-    chart.data.labels.push(label);
-    chart.data.datasets[0].data.push(position);
-    if (chart.data.labels.length > MAX_POINTS) {
-        chart.data.labels.shift();
-        chart.data.datasets[0].data.shift();
+    async disconnect() {
+        this._readerRunning = false;
+        try { await this.device.releaseInterface(this.interfaceNumber); } catch {}
+        try { await this.device.close(); } catch {}
+        this.device = null;
+        this._rxBuffer = new Uint8Array(0);
     }
-    chart.update();
 }
 
-function clearChart() {
-    chart.data.labels = [];
-    chart.data.datasets[0].data = [];
-    chart.update();
-    log('Chart cleared');
+// ============================================================
+//  APT Protocol over WebUSB
+// ============================================================
+const APT_SOURCE = 0x01;
+const APT_DEST = 0x50;
+
+const HW_REQ_INFO = 0x0005;
+const HW_GET_INFO = 0x0006;
+const HW_NO_FLASH_PROGRAMMING = 0x0018;
+const MOD_SET_CHANENABLESTATE = 0x0210;
+const MOT_SET_VELPARAMS = 0x0413;
+const MOT_REQ_VELPARAMS = 0x0414;
+const MOT_GET_VELPARAMS = 0x0415;
+const MOT_MOVE_HOME = 0x0443;
+const MOT_MOVE_RELATIVE = 0x0448;
+const MOT_MOVE_ABSOLUTE = 0x0453;
+const MOT_MOVE_STOP = 0x0465;
+const MOT_MOVE_JOG = 0x046A;
+const MOT_REQ_DCSTATUSUPDATE = 0x0490;
+const MOT_GET_DCSTATUSUPDATE = 0x0491;
+
+const STATUS_FWD_HW_LIM = 0x01;
+const STATUS_REV_HW_LIM = 0x02;
+const STATUS_MOVING_BITS = 0x10 | 0x20 | 0x40 | 0x80 | 0x200;
+const STATUS_HOMED = 0x400;
+
+const T_APT = 2048 / 6000000;
+
+class APTProtocol {
+    constructor(port) {
+        this.port = port;
+    }
+
+    async sendShort(msgId, param1 = 0, param2 = 0) {
+        const buf = new Uint8Array(6);
+        const dv = new DataView(buf.buffer);
+        dv.setUint16(0, msgId, true);
+        buf[2] = param1;
+        buf[3] = param2;
+        buf[4] = APT_DEST;
+        buf[5] = APT_SOURCE;
+        await this.port.write(buf);
+    }
+
+    async sendLong(msgId, data) {
+        const buf = new Uint8Array(6 + data.length);
+        const dv = new DataView(buf.buffer);
+        dv.setUint16(0, msgId, true);
+        dv.setUint16(2, data.length, true);
+        buf[4] = APT_DEST | 0x80;
+        buf[5] = APT_SOURCE;
+        buf.set(data, 6);
+        await this.port.write(buf);
+    }
+
+    async recvMessage(timeoutMs = 2000) {
+        const deadline = performance.now() + timeoutMs;
+        while (performance.now() < deadline) {
+            if (this.port._rxBuffer.length >= 6) {
+                const header = this.port._rxBuffer.slice(0, 6);
+                const dv = new DataView(header.buffer);
+                const msgId = dv.getUint16(0, true);
+                if (header[4] & 0x80) {
+                    const dataLen = dv.getUint16(2, true);
+                    if (this.port._rxBuffer.length >= 6 + dataLen) {
+                        const data = this.port._rxBuffer.slice(6, 6 + dataLen);
+                        this.port._rxBuffer = this.port._rxBuffer.slice(6 + dataLen);
+                        return { msgId, data };
+                    }
+                } else {
+                    this.port._rxBuffer = this.port._rxBuffer.slice(6);
+                    return { msgId, param1: header[2], param2: header[3] };
+                }
+            }
+            await new Promise(r => setTimeout(r, 10));
+        }
+        return null;
+    }
+
+    async waitForMessage(targetMsgId, timeoutMs = 5000) {
+        const deadline = performance.now() + timeoutMs;
+        while (performance.now() < deadline) {
+            const msg = await this.recvMessage(deadline - performance.now());
+            if (msg && msg.msgId === targetMsgId) return msg;
+            if (!msg) break;
+        }
+        return null;
+    }
 }
 
-// --- Logging ---
+// ============================================================
+//  KDC101 high-level driver (WebUSB)
+// ============================================================
+class KDC101Driver {
+    constructor() {
+        this.port = new FTDIPort();
+        this.apt = new APTProtocol(this.port);
+        this.countsPerMm = 34555;
+        this.connected = false;
+    }
+
+    async connect() {
+        await this.port.connect();
+        this.connected = true;
+        await this.apt.sendShort(HW_NO_FLASH_PROGRAMMING, 0, 0);
+        await sleep(100);
+        await this.apt.sendShort(MOD_SET_CHANENABLESTATE, 0x01, 0x01);
+        await sleep(100);
+    }
+
+    async reconnect() {
+        const ok = await this.port.reconnect();
+        if (!ok) return false;
+        this.connected = true;
+        await this.apt.sendShort(HW_NO_FLASH_PROGRAMMING, 0, 0);
+        await sleep(100);
+        await this.apt.sendShort(MOD_SET_CHANENABLESTATE, 0x01, 0x01);
+        await sleep(100);
+        return true;
+    }
+
+    async disconnect() {
+        this.connected = false;
+        await this.port.disconnect();
+    }
+
+    async getHwInfo() {
+        await this.apt.sendShort(HW_REQ_INFO, 0, 0);
+        const msg = await this.apt.waitForMessage(HW_GET_INFO);
+        if (!msg || !msg.data) throw new Error('No HW_GET_INFO response');
+        const dv = new DataView(msg.data.buffer);
+        const serial = dv.getUint32(0, true);
+        const model = new TextDecoder().decode(msg.data.slice(4, 12)).replace(/\0/g, '').trim();
+        const fwMinor = msg.data[14], fwInterim = msg.data[15], fwMajor = msg.data[16];
+        return { serial, model, firmware: `${fwMajor}.${fwInterim}.${fwMinor}` };
+    }
+
+    async getStatus() {
+        await this.apt.sendShort(MOT_REQ_DCSTATUSUPDATE, 0x01, 0);
+        const msg = await this.apt.waitForMessage(MOT_GET_DCSTATUSUPDATE, 2000);
+        if (!msg || !msg.data) throw new Error('No status response');
+        const dv = new DataView(msg.data.buffer);
+        const positionCounts = dv.getInt32(2, true);
+        const velocity = dv.getUint16(6, true);
+        const statusBits = dv.getUint32(10, true);
+        return {
+            position_counts: positionCounts,
+            position_mm: positionCounts / this.countsPerMm,
+            velocity,
+            status_bits: statusBits,
+            is_homed: !!(statusBits & STATUS_HOMED),
+            is_moving: !!(statusBits & STATUS_MOVING_BITS),
+            fwd_limit: !!(statusBits & STATUS_FWD_HW_LIM),
+            rev_limit: !!(statusBits & STATUS_REV_HW_LIM),
+        };
+    }
+
+    async home() { await this.apt.sendShort(MOT_MOVE_HOME, 0x01, 0); }
+
+    async moveAbsolute(positionMm) {
+        const counts = Math.round(positionMm * this.countsPerMm);
+        const data = new Uint8Array(6);
+        const dv = new DataView(data.buffer);
+        dv.setUint16(0, 0x01, true);
+        dv.setInt32(2, counts, true);
+        await this.apt.sendLong(MOT_MOVE_ABSOLUTE, data);
+    }
+
+    async moveRelative(distanceMm) {
+        const counts = Math.round(distanceMm * this.countsPerMm);
+        const data = new Uint8Array(6);
+        const dv = new DataView(data.buffer);
+        dv.setUint16(0, 0x01, true);
+        dv.setInt32(2, counts, true);
+        await this.apt.sendLong(MOT_MOVE_RELATIVE, data);
+    }
+
+    async jog(direction) { await this.apt.sendShort(MOT_MOVE_JOG, 0x01, direction); }
+
+    async stop(immediate = false) {
+        await this.apt.sendShort(MOT_MOVE_STOP, 0x01, immediate ? 0x01 : 0x02);
+    }
+
+    async setVelocityParams(maxVelMmS, accelMmS2, minVelMmS = 0) {
+        const minVelAPT = Math.round(minVelMmS * this.countsPerMm * T_APT * 65536);
+        const accelAPT = Math.round(accelMmS2 * this.countsPerMm * T_APT * T_APT * 65536);
+        const maxVelAPT = Math.round(maxVelMmS * this.countsPerMm * T_APT * 65536);
+        const data = new Uint8Array(14);
+        const dv = new DataView(data.buffer);
+        dv.setUint16(0, 0x01, true);
+        dv.setUint32(2, minVelAPT, true);
+        dv.setUint32(6, accelAPT, true);
+        dv.setUint32(10, maxVelAPT, true);
+        await this.apt.sendLong(MOT_SET_VELPARAMS, data);
+    }
+
+    async getVelocityParams() {
+        await this.apt.sendShort(MOT_REQ_VELPARAMS, 0x01, 0);
+        const msg = await this.apt.waitForMessage(MOT_GET_VELPARAMS, 2000);
+        if (!msg || !msg.data) throw new Error('No velocity params response');
+        const dv = new DataView(msg.data.buffer);
+        const minVel = dv.getUint32(2, true);
+        const accel = dv.getUint32(6, true);
+        const maxVel = dv.getUint32(10, true);
+        const divisorVel = this.countsPerMm * T_APT * 65536;
+        const divisorAcc = this.countsPerMm * T_APT * T_APT * 65536;
+        return {
+            min_velocity_mm_s: minVel / divisorVel,
+            acceleration_mm_s2: accel / divisorAcc,
+            max_velocity_mm_s: maxVel / divisorVel,
+        };
+    }
+}
+
+// ============================================================
+//  Globals
+// ============================================================
+const kdc = new KDC101Driver();
+let kdcConnected = false;
+let pollTimer = null;
+let polling = false;
+const MAX_CHART_POINTS = 500;
+let chartData = { labels: [], positions: [] };
+
+// ============================================================
+//  Logging
+// ============================================================
 function log(msg, type = '') {
     const box = document.getElementById('logBox');
     const cls = type === 'error' ? 'log-error' : type === 'ok' ? 'log-ok' : '';
@@ -378,251 +674,293 @@ function log(msg, type = '') {
     box.scrollTop = box.scrollHeight;
 }
 
-// --- API helpers ---
-async function api(method, path, body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(API + path, opts);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-    return data;
-}
-
-// --- Device ---
-async function scanDevices() {
-    try {
-        const devices = await api('GET', '/device/list');
-        const sel = document.getElementById('deviceSelect');
-        sel.innerHTML = '';
-        if (devices.length === 0) {
-            sel.innerHTML = '<option value="">No devices found</option>';
-            log('Scan: no D2XX devices found', 'error');
-        } else {
-            devices.forEach(d => {
-                sel.innerHTML += `<option value="${d.serial_number}">${d.serial_number} - ${d.description}</option>`;
-            });
-            log(`Scan: found ${devices.length} device(s)`, 'ok');
+// ============================================================
+//  Chart Setup
+// ============================================================
+const ctx = document.getElementById('posChart').getContext('2d');
+const posChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Position (mm)',
+            data: [],
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.2,
+            fill: true,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+            x: {
+                title: { display: true, text: 'Time', color: '#888' },
+                ticks: { color: '#666', maxTicksLimit: 10 },
+                grid: { color: '#1a1d27' },
+            },
+            y: {
+                title: { display: true, text: 'Position (mm)', color: '#888' },
+                ticks: { color: '#666' },
+                grid: { color: '#2a2d3a' },
+            }
+        },
+        plugins: {
+            legend: { display: false },
         }
-    } catch (e) { log('Scan error: ' + e.message, 'error'); }
+    }
+});
+
+// ============================================================
+//  UI Update
+// ============================================================
+function updateUI(connected) {
+    document.getElementById('kdcDot').className = 'status-dot ' + (connected ? 'on' : 'off');
+    document.getElementById('connectionStatusText').textContent = connected ? 'Connected' : 'Disconnected';
+    document.getElementById('btnKdcConnect').disabled = connected;
+    document.getElementById('btnKdcDisconnect').disabled = !connected;
+    document.getElementById('kdcInfoPanel').style.display = connected ? 'block' : 'none';
+    if (!connected) {
+        document.getElementById('positionValue').textContent = '--.---';
+        updateBadge('badgeHomed', false);
+        updateBadge('badgeMoving', false);
+        updateBadge('badgeFwdLimit', false);
+        updateBadge('badgeRevLimit', false);
+    }
 }
 
+function updateBadge(id, active, type = 'active') {
+    const el = document.getElementById(id);
+    if (active) {
+        el.className = 'status-badge badge-' + type;
+    } else {
+        el.className = 'status-badge badge-inactive';
+    }
+}
+
+function updateDisplay(status) {
+    document.getElementById('positionValue').textContent = status.position_mm.toFixed(3);
+    updateBadge('badgeHomed', status.is_homed, 'active');
+    updateBadge('badgeMoving', status.is_moving, 'moving');
+    updateBadge('badgeFwdLimit', status.fwd_limit, 'warning');
+    updateBadge('badgeRevLimit', status.rev_limit, 'warning');
+}
+
+function addChartPoint(positionMm) {
+    const now = new Date().toLocaleTimeString('en', { hour12: false, fractionalSecondDigits: 1 });
+    chartData.labels.push(now);
+    chartData.positions.push(positionMm);
+
+    if (chartData.labels.length > MAX_CHART_POINTS) {
+        chartData.labels.shift();
+        chartData.positions.shift();
+    }
+
+    posChart.data.labels = chartData.labels;
+    posChart.data.datasets[0].data = chartData.positions;
+    posChart.update();
+}
+
+// ============================================================
+//  Connection
+// ============================================================
 async function connectDevice() {
-    const sn = document.getElementById('deviceSelect').value;
-    if (!sn) { log('No device selected', 'error'); return; }
     try {
-        await api('POST', '/device/connect', { serial_number: sn });
-        log('Connected to S/N ' + sn, 'ok');
-        updateConnectionUI(true);
+        await kdc.connect();
+        kdcConnected = true;
+        log('KDC101 connected via WebUSB', 'ok');
+        updateUI(true);
         await loadDeviceInfo();
-        await refreshVelocityParams();
-        await refreshStageConfig();
-    } catch (e) { log('Connect error: ' + e.message, 'error'); }
+    } catch (e) { log('KDC101 connect error: ' + e.message, 'error'); }
 }
 
 async function disconnectDevice() {
+    stopPolling();
     try {
-        stopSSE();
-        await api('POST', '/device/disconnect');
-        log('Disconnected', 'ok');
-        updateConnectionUI(false);
-    } catch (e) { log('Disconnect error: ' + e.message, 'error'); }
-}
-
-function updateConnectionUI(connected) {
-    document.getElementById('statusDot').className = 'status-dot ' + (connected ? 'on' : 'off');
-    document.getElementById('statusText').textContent = connected ? 'Connected' : 'Disconnected';
-    document.getElementById('btnConnect').disabled = connected;
-    document.getElementById('btnDisconnect').disabled = !connected;
-    document.getElementById('deviceInfo').style.display = connected ? 'block' : 'none';
+        await kdc.disconnect();
+        kdcConnected = false;
+        log('KDC101 disconnected', 'ok');
+        updateUI(false);
+    } catch (e) { log('KDC101 disconnect error: ' + e.message, 'error'); }
 }
 
 async function loadDeviceInfo() {
     try {
-        const info = await api('GET', '/device/info');
-        document.getElementById('infoModel').textContent = info.model;
-        document.getElementById('infoSerial').textContent = info.serial_number;
-        document.getElementById('infoFirmware').textContent = info.firmware_version;
-        document.getElementById('infoHwVer').textContent = info.hw_version;
-    } catch (e) { log('Info error: ' + e.message, 'error'); }
+        const info = await kdc.getHwInfo();
+        document.getElementById('kdcInfoSerial').textContent = info.serial;
+        document.getElementById('kdcInfoModel').textContent = info.model;
+        document.getElementById('kdcInfoFW').textContent = info.firmware;
+        log(`Device: ${info.model} (SN: ${info.serial}, FW: ${info.firmware})`, 'ok');
+    } catch (e) { log('KDC101 info error: ' + e.message, 'error'); }
 }
 
-// --- Motion ---
+// ============================================================
+//  Motion Controls
+// ============================================================
 async function homeStage() {
     try {
-        await api('POST', '/motion/home');
-        log('Homing started...', 'ok');
+        await kdc.home();
+        log('Homing started', 'ok');
     } catch (e) { log('Home error: ' + e.message, 'error'); }
 }
 
 async function moveAbsolute() {
     const pos = parseFloat(document.getElementById('moveAbsPos').value);
     try {
-        await api('POST', '/motion/move_absolute', { position_mm: pos });
-        log(`Moving to ${pos} mm...`, 'ok');
-    } catch (e) { log('Move error: ' + e.message, 'error'); }
+        await kdc.moveAbsolute(pos);
+        log(`Moving to ${pos} mm`, 'ok');
+    } catch (e) { log('Move absolute error: ' + e.message, 'error'); }
 }
 
-function moveRelative(sign) {
-    const dist = parseFloat(document.getElementById('moveRelDist').value) * sign;
-    api('POST', '/motion/move_relative', { distance_mm: dist })
-        .then(() => log(`Moving ${dist > 0 ? '+' : ''}${dist} mm...`, 'ok'))
-        .catch(e => log('Move error: ' + e.message, 'error'));
+async function moveRelFwd() {
+    const dist = parseFloat(document.getElementById('moveRelDist').value);
+    try {
+        await kdc.moveRelative(dist);
+        log(`Relative move +${dist} mm`, 'ok');
+    } catch (e) { log('Move relative error: ' + e.message, 'error'); }
+}
+
+async function moveRelRev() {
+    const dist = parseFloat(document.getElementById('moveRelDist').value);
+    try {
+        await kdc.moveRelative(-dist);
+        log(`Relative move -${dist} mm`, 'ok');
+    } catch (e) { log('Move relative error: ' + e.message, 'error'); }
 }
 
 async function jogForward() {
     try {
-        await api('POST', '/motion/jog', { direction: 'forward' });
-        log('Jogging forward', 'ok');
+        await kdc.jog(1);
+        log('Jog forward', 'ok');
     } catch (e) { log('Jog error: ' + e.message, 'error'); }
 }
 
 async function jogReverse() {
     try {
-        await api('POST', '/motion/jog', { direction: 'reverse' });
-        log('Jogging reverse', 'ok');
+        await kdc.jog(2);
+        log('Jog reverse', 'ok');
     } catch (e) { log('Jog error: ' + e.message, 'error'); }
 }
 
 async function stopMotion() {
     try {
-        await api('POST', '/motion/stop?immediate=false');
-        log('Stop (profiled)', 'ok');
+        await kdc.stop(false);
+        log('Stage stopped (profiled)', 'ok');
     } catch (e) { log('Stop error: ' + e.message, 'error'); }
 }
 
-async function stopMotionImmediate() {
+async function stopImmediate() {
     try {
-        await api('POST', '/motion/stop?immediate=true');
-        log('E-STOP (immediate)', 'ok');
-    } catch (e) { log('E-Stop error: ' + e.message, 'error'); }
+        await kdc.stop(true);
+        log('E-STOP: immediate stop', 'ok');
+    } catch (e) { log('E-STOP error: ' + e.message, 'error'); }
 }
 
-// --- Status reading ---
-async function readStatus() {
-    try {
-        const st = await api('GET', '/device/status');
-        if (st.position_mm !== null) {
-            updatePositionDisplay(st.position_mm);
-            updateIndicators(st);
-        }
-        log(`Position: ${st.position_mm !== null ? st.position_mm.toFixed(4) : '?'} mm | Homed: ${st.is_homed} | Moving: ${st.is_moving}`);
-    } catch (e) { log('Status error: ' + e.message, 'error'); }
-}
-
-// --- Config ---
-async function refreshVelocityParams() {
-    try {
-        const p = await api('GET', '/config/velocity');
-        document.getElementById('cfgVelocity').value = p.max_velocity_mm_s.toFixed(2);
-        document.getElementById('cfgAccel').value = p.acceleration_mm_s2.toFixed(2);
-        log('Velocity params refreshed', 'ok');
-    } catch (e) { log('Velocity config error: ' + e.message, 'error'); }
-}
-
-async function setVelocityParams() {
+// ============================================================
+//  Configuration
+// ============================================================
+async function applyVelocity() {
     const vel = parseFloat(document.getElementById('cfgVelocity').value);
     const acc = parseFloat(document.getElementById('cfgAccel').value);
+    const cpm = parseInt(document.getElementById('cfgCountsPerMm').value);
+    if (cpm > 0) kdc.countsPerMm = cpm;
     try {
-        await api('PUT', '/config/velocity', { max_velocity_mm_s: vel, acceleration_mm_s2: acc });
-        log(`Velocity: ${vel} mm/s, Accel: ${acc} mm/s2`, 'ok');
-    } catch (e) { log('Set velocity error: ' + e.message, 'error'); }
+        await kdc.setVelocityParams(vel, acc);
+        log(`Velocity: ${vel} mm/s, Accel: ${acc} mm/s\u00B2, Counts/mm: ${kdc.countsPerMm}`, 'ok');
+    } catch (e) { log('Velocity set error: ' + e.message, 'error'); }
 }
 
-async function refreshStageConfig() {
+// ============================================================
+//  Status Polling
+// ============================================================
+async function readStatusOnce() {
+    if (!kdcConnected) { log('Not connected', 'error'); return; }
     try {
-        const c = await api('GET', '/config/stage');
-        document.getElementById('cfgCounts').value = c.counts_per_mm;
-    } catch (e) { /* ignore */ }
+        const st = await kdc.getStatus();
+        updateDisplay(st);
+        addChartPoint(st.position_mm);
+        log(`Position: ${st.position_mm.toFixed(3)} mm | Homed: ${st.is_homed} | Moving: ${st.is_moving}`, 'ok');
+    } catch (e) { log('Status read error: ' + e.message, 'error'); }
 }
 
-async function setStageConfig() {
-    const c = parseFloat(document.getElementById('cfgCounts').value);
+function startPolling() {
+    if (!kdcConnected) { log('Not connected', 'error'); return; }
+    if (polling) return;
+    polling = true;
+    document.getElementById('btnStartPoll').disabled = true;
+    document.getElementById('btnStopPoll').disabled = false;
+    log('Polling started', 'ok');
+    pollLoop();
+}
+
+function stopPolling() {
+    polling = false;
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    document.getElementById('btnStartPoll').disabled = false;
+    document.getElementById('btnStopPoll').disabled = true;
+    log('Polling stopped');
+}
+
+async function pollLoop() {
+    if (!polling || !kdcConnected) { stopPolling(); return; }
     try {
-        await api('PUT', '/config/stage', { counts_per_mm: c });
-        log(`Counts/mm set to ${c}`, 'ok');
-    } catch (e) { log('Set counts error: ' + e.message, 'error'); }
-}
-
-// --- Polling & SSE ---
-async function startPolling() {
-    const interval = parseInt(document.getElementById('pollInterval').value);
-    try {
-        await api('POST', '/polling/start', { interval_ms: interval });
-        log(`Polling started (${interval} ms)`, 'ok');
-        document.getElementById('btnPollStart').disabled = true;
-        document.getElementById('btnPollStop').disabled = false;
-        startSSE();
-    } catch (e) { log('Polling start error: ' + e.message, 'error'); }
-}
-
-async function stopPolling() {
-    try {
-        stopSSE();
-        await api('POST', '/polling/stop');
-        log('Polling stopped', 'ok');
-        document.getElementById('btnPollStart').disabled = false;
-        document.getElementById('btnPollStop').disabled = true;
-    } catch (e) { log('Polling stop error: ' + e.message, 'error'); }
-}
-
-function startSSE() {
-    stopSSE();
-    sseSource = new EventSource(API + '/polling/stream');
-    sseSource.addEventListener('position', (e) => {
-        const r = JSON.parse(e.data);
-        updatePositionDisplay(r.position_mm);
-        addChartPoint(r.timestamp, r.position_mm);
-        // Decode status bits for indicators
-        const bits = r.status_bits;
-        updateIndicators({
-            is_homed: !!(bits & 0x00000400),
-            is_moving: !!(bits & (0x10 | 0x20 | 0x40 | 0x80 | 0x200)),
-            is_homing: !!(bits & 0x00000200),
-            fwd_limit: !!(bits & 0x01),
-            rev_limit: !!(bits & 0x02),
-        });
-    });
-    sseSource.onerror = () => {
-        log('SSE connection error', 'error');
-    };
-}
-
-function stopSSE() {
-    if (sseSource) {
-        sseSource.close();
-        sseSource = null;
+        const st = await kdc.getStatus();
+        updateDisplay(st);
+        addChartPoint(st.position_mm);
+    } catch (e) { /* skip */ }
+    if (polling && kdcConnected) {
+        const interval = parseInt(document.getElementById('cfgPollInterval').value) || 200;
+        pollTimer = setTimeout(pollLoop, interval);
     }
 }
 
-function updatePositionDisplay(pos_mm) {
-    document.getElementById('positionValue').textContent = pos_mm.toFixed(4);
+function clearChart() {
+    chartData.labels = [];
+    chartData.positions = [];
+    posChart.data.labels = [];
+    posChart.data.datasets[0].data = [];
+    posChart.update();
+    log('Chart cleared');
 }
 
-function updateIndicators(st) {
-    setDot('indHomed', st.is_homed ? 'active' : '');
-    setDot('indMoving', st.is_moving ? 'warn' : '');
-    setDot('indHoming', st.is_homing ? 'warn' : '');
-    setDot('indFwdLim', st.fwd_limit ? 'error' : '');
-    setDot('indRevLim', st.rev_limit ? 'error' : '');
-}
+// ============================================================
+//  Initialization
+// ============================================================
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check WebUSB support
+    if (!navigator.usb) {
+        log('WebUSB not supported. Use Chrome or Edge.', 'error');
+        document.getElementById('btnKdcConnect').disabled = true;
+        document.getElementById('kdcWebusbNotice').innerHTML =
+            '<strong style="color:#f87171;">WebUSB not supported!</strong> Use Chrome or Edge.';
+    } else {
+        // Try to auto-reconnect KDC101
+        try {
+            const ok = await kdc.reconnect();
+            if (ok) {
+                kdcConnected = true;
+                log('KDC101 auto-reconnected', 'ok');
+                updateUI(true);
+                await loadDeviceInfo();
+            }
+        } catch (e) { /* no previously paired device */ }
+    }
+});
 
-function setDot(id, cls) {
-    const el = document.getElementById(id);
-    el.className = 'dot' + (cls ? ' ' + cls : '');
-}
-
-// --- Init ---
-window.addEventListener('load', async () => {
-    log('KDC101 Web GUI loaded');
-    try {
-        const st = await api('GET', '/device/status');
-        updateConnectionUI(st.connected);
-        if (st.connected) {
-            await loadDeviceInfo();
-            await refreshVelocityParams();
-            await refreshStageConfig();
-        }
-    } catch (e) { log('Init error: ' + e.message, 'error'); }
+// Listen for USB disconnect
+navigator.usb?.addEventListener('disconnect', (e) => {
+    if (kdc.port.device === e.device) {
+        stopPolling();
+        kdc.connected = false;
+        kdc.port.device = null;
+        kdcConnected = false;
+        updateUI(false);
+        log('KDC101 USB disconnected', 'error');
+    }
 });
 </script>
 </body>

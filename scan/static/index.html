@@ -26,7 +26,7 @@
         .status-dot.on { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
         .status-dot.off { background: #666; }
 
-        .container { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); }
+        .container { display: grid; grid-template-columns: 340px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); }
 
         .sidebar { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 
@@ -67,6 +67,7 @@
 
         .btn-row { display: flex; gap: 8px; margin-top: 8px; }
         .btn-block { width: 100%; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
 
         select, input[type="number"], input[type="text"] {
             background: #111318;
@@ -83,6 +84,22 @@
         .field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
 
         .main-area { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+        .power-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px;
+        }
+        .power-value {
+            font-size: 42px;
+            font-weight: 700;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: #4caf50;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+        .power-unit { font-size: 18px; color: #888; }
 
         .chart-container {
             flex: 1;
@@ -103,6 +120,19 @@
         }
         .log-box .log-error { color: #ef4444; }
         .log-box .log-ok { color: #22c55e; }
+
+        .notice {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        .notice strong { color: #e2e8f0; }
+        .notice a { color: #60a5fa; }
 
         .mode-toggle {
             display: flex;
@@ -174,6 +204,7 @@
         .badge-idle { background: #374151; color: #9ca3af; }
         .badge-preparing { background: #1e3a5f; color: #60a5fa; }
         .badge-scanning { background: #14532d; color: #4ade80; }
+        .badge-returning { background: #3b1f6e; color: #c084fc; }
         .badge-complete { background: #422006; color: #f59e0b; }
         .badge-error { background: #450a0a; color: #f87171; }
 
@@ -191,56 +222,6 @@
             border-radius: 3px;
             transition: width 0.2s;
             width: 0%;
-        }
-
-        .range-selector {
-            padding: 16px 0 8px;
-        }
-        .range-selector .range-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 8px;
-        }
-        .range-selector .range-values {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            color: #e0e0e0;
-            font-family: monospace;
-        }
-        .range-slider-container {
-            position: relative;
-            height: 30px;
-        }
-        .range-slider-container input[type="range"] {
-            position: absolute;
-            width: 100%;
-            top: 0;
-            height: 30px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: transparent;
-            pointer-events: none;
-            padding: 0;
-            border: none;
-        }
-        .range-slider-container input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #3b82f6;
-            cursor: pointer;
-            pointer-events: auto;
-            border: 2px solid #1e40af;
-        }
-        .range-slider-container input[type="range"]::-webkit-slider-runnable-track {
-            height: 4px;
-            background: #2a2d3a;
-            border-radius: 2px;
         }
 
         .export-row {
@@ -269,7 +250,41 @@
             font-size: 12px;
         }
         .info-grid .label { color: #666; }
-        .info-grid .value { color: #ccc; text-align: right; font-family: monospace; }
+        .info-grid .value { color: #ccc; text-align: right; font-family: monospace; overflow: hidden; text-overflow: ellipsis; }
+
+        .motion-group {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+        .motion-group .group-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .crop-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-family: monospace;
+            color: #e0e0e0;
+            margin-bottom: 10px;
+        }
+        .crop-info span { color: #f59e0b; }
+
+        .center-hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+            padding: 6px 10px;
+            background: #111318;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -289,29 +304,44 @@
 
 <div class="container">
     <div class="sidebar">
-        <!-- Device Setup -->
+        <!-- PM100D WebUSB -->
         <div class="panel">
-            <h3>Device Setup</h3>
-
-            <div class="field">
-                <label>PM100D (Power Meter)</label>
-                <select id="pmSelect"><option value="">-- Scan --</option></select>
+            <h3>PM100D (WebUSB)</h3>
+            <div class="notice" id="webusbNotice">
+                <strong>Requires Chrome/Edge.</strong> WinUSB driver via
+                <a href="https://zadig.akeo.ie/" target="_blank">Zadig</a> needed on Windows.
             </div>
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="scanPM()">Scan</button>
-                <button class="btn btn-success" id="btnPmConnect" onclick="connectPM()">Connect</button>
+                <button class="btn btn-success" id="btnPmConnect" onclick="connectPM()">Connect USB</button>
                 <button class="btn btn-danger" id="btnPmDisconnect" onclick="disconnectPM()" disabled>Disconnect</button>
             </div>
-
-            <div style="margin-top: 12px;">
-                <div class="field">
-                    <label>KDC101 (Translation Stage)</label>
-                    <select id="kdcSelect"><option value="">-- Scan --</option></select>
+            <div id="pmInfoPanel" style="margin-top: 12px; display: none;">
+                <div class="info-grid">
+                    <span class="label">IDN</span><span class="value" id="pmInfoIdn">-</span>
+                    <span class="label">Sensor</span><span class="value" id="pmInfoSensor">-</span>
+                    <span class="label">WL Range</span><span class="value" id="pmInfoWlRange">-</span>
+                    <span class="label">Power Range</span><span class="value" id="pmInfoPwrRange">-</span>
                 </div>
-                <div class="btn-row">
-                    <button class="btn btn-secondary" onclick="scanKDC()">Scan</button>
-                    <button class="btn btn-success" id="btnKdcConnect" onclick="connectKDC()">Connect</button>
-                    <button class="btn btn-danger" id="btnKdcDisconnect" onclick="disconnectKDC()" disabled>Disconnect</button>
+            </div>
+        </div>
+
+        <!-- KDC101 WebUSB -->
+        <div class="panel">
+            <h3>KDC101 (WebUSB)</h3>
+            <div class="notice" id="kdcWebusbNotice">
+                <strong>Requires Chrome/Edge.</strong> WinUSB driver via
+                <a href="https://zadig.akeo.ie/" target="_blank">Zadig</a> needed on Windows
+                (replace FTDI driver with WinUSB for the KDC101 device).
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-success" id="btnKdcConnect" onclick="connectKDC()">Connect USB</button>
+                <button class="btn btn-danger" id="btnKdcDisconnect" onclick="disconnectKDC()" disabled>Disconnect</button>
+            </div>
+            <div id="kdcInfoPanel" style="margin-top: 12px; display: none;">
+                <div class="info-grid">
+                    <span class="label">Serial</span><span class="value" id="kdcInfoSerial">-</span>
+                    <span class="label">Model</span><span class="value" id="kdcInfoModel">-</span>
+                    <span class="label">FW Version</span><span class="value" id="kdcInfoFW">-</span>
                 </div>
             </div>
         </div>
@@ -357,13 +387,42 @@
             </div>
         </div>
 
-        <!-- Stage Config -->
+        <!-- Stage Control -->
         <div class="panel">
-            <h3>Stage Config</h3>
+            <h3>Stage Control</h3>
             <div class="position-display">
                 Position: <span id="stagePosition">--</span> mm
             </div>
-            <div class="field">
+
+            <!-- Absolute Move -->
+            <div class="motion-group">
+                <div class="group-label">Absolute Move</div>
+                <div class="btn-row" style="margin-top:0;">
+                    <input type="number" id="moveAbsPos" value="0" step="0.001" style="flex:1;">
+                    <button class="btn btn-primary btn-sm" onclick="moveAbsolute()">Go</button>
+                </div>
+            </div>
+
+            <!-- Relative Move -->
+            <div class="motion-group">
+                <div class="group-label">Relative Move</div>
+                <div class="btn-row" style="margin-top:0;">
+                    <button class="btn btn-secondary btn-sm" onclick="moveRelative(-1)">&#9664;</button>
+                    <input type="number" id="moveRelDist" value="1.0" step="0.1" min="0.001" style="flex:1;">
+                    <button class="btn btn-secondary btn-sm" onclick="moveRelative(1)">&#9654;</button>
+                </div>
+            </div>
+
+            <!-- Jog -->
+            <div class="motion-group">
+                <div class="group-label">Jog</div>
+                <div class="btn-row" style="margin-top:0;">
+                    <button class="btn btn-secondary btn-sm btn-block" onclick="jogStage('reverse')">&#9664; Reverse</button>
+                    <button class="btn btn-secondary btn-sm btn-block" onclick="jogStage('forward')">Forward &#9654;</button>
+                </div>
+            </div>
+
+            <div class="field" style="margin-top: 10px;">
                 <label>Velocity (mm/s)</label>
                 <input type="number" id="cfgVelocity" value="2.0" step="0.1" min="0.01">
             </div>
@@ -375,6 +434,7 @@
                 <button class="btn btn-warning" onclick="homeStage()">Home</button>
                 <button class="btn btn-danger" onclick="stopStage()">Stop</button>
                 <button class="btn btn-secondary" onclick="refreshStagePosition()">Refresh</button>
+                <button class="btn btn-primary" onclick="applyVelocity()">Apply V/A</button>
             </div>
         </div>
 
@@ -383,24 +443,13 @@
             <h3>Scan Setup</h3>
 
             <div class="mode-toggle">
-                <input type="radio" name="scanMode" id="modeAbsolute" value="absolute" checked onchange="onModeChange()">
-                <label for="modeAbsolute">Absolute</label>
-                <input type="radio" name="scanMode" id="modeRelative" value="relative" onchange="onModeChange()">
+                <input type="radio" name="scanMode" id="modeRelative" value="relative" checked onchange="onModeChange()">
                 <label for="modeRelative">Relative</label>
+                <input type="radio" name="scanMode" id="modeCenter" value="center" onchange="onModeChange()">
+                <label for="modeCenter">Center</label>
             </div>
 
-            <div id="absoluteFields" class="mode-fields active">
-                <div class="field">
-                    <label>Start Position (mm)</label>
-                    <input type="number" id="scanStart" value="0" step="0.001">
-                </div>
-                <div class="field">
-                    <label>End Position (mm)</label>
-                    <input type="number" id="scanEnd" value="12" step="0.001">
-                </div>
-            </div>
-
-            <div id="relativeFields" class="mode-fields">
+            <div id="relativeFields" class="mode-fields active">
                 <div class="field">
                     <label>Distance (mm)</label>
                     <input type="number" id="scanDistance" value="5" step="0.001" min="0.001">
@@ -413,6 +462,16 @@
                         <input type="radio" name="scanDir" id="dirBackward" value="backward">
                         <label for="dirBackward">- Backward</label>
                     </div>
+                </div>
+            </div>
+
+            <div id="centerFields" class="mode-fields">
+                <div class="field">
+                    <label>Scan Range (mm)</label>
+                    <input type="number" id="scanRange" value="5" step="0.001" min="0.001">
+                </div>
+                <div class="center-hint">
+                    Centered on current position: &plusmn;<span id="halfRange">2.500</span> mm
                 </div>
             </div>
 
@@ -431,7 +490,7 @@
             </div>
 
             <div class="btn-row" style="margin-top: 12px;">
-                <button class="btn btn-success btn-block" id="btnStartScan" onclick="startScan()">Start Scan</button>
+                <button class="btn btn-success btn-block" id="btnStartScan" onclick="startScan()" disabled>Start Scan</button>
                 <button class="btn btn-danger" id="btnStopScan" onclick="stopScan()" disabled>Stop</button>
             </div>
         </div>
@@ -444,34 +503,33 @@
     </div>
 
     <div class="main-area">
+        <!-- Real-time Power Display -->
+        <div class="panel power-display" id="powerPanel">
+            <div class="power-value" id="powerValue">---</div>
+            <div class="power-unit" id="powerUnitDisplay">W</div>
+        </div>
+
         <!-- Chart -->
         <div class="panel chart-container">
             <canvas id="scanChart"></canvas>
         </div>
 
-        <!-- Range Selector & Export -->
+        <!-- Crop & Export -->
         <div class="panel">
-            <h3>Data Range & Export</h3>
-            <div class="range-selector">
-                <div class="range-labels">
-                    <span>Start</span>
-                    <span>End</span>
-                </div>
-                <div class="range-slider-container">
-                    <input type="range" id="rangeMin" min="0" max="100" value="0" step="0.001" oninput="onRangeChange()">
-                    <input type="range" id="rangeMax" min="0" max="100" value="100" step="0.001" oninput="onRangeChange()">
-                </div>
-                <div class="range-values">
-                    <span id="rangeMinVal">0.000 mm</span>
-                    <span id="rangeMaxVal">0.000 mm</span>
-                </div>
+            <h3>Crop & Export</h3>
+            <div class="crop-info">
+                <span>Left: <span id="cropLeftVal">--</span> mm</span>
+                <span>Right: <span id="cropRightVal">--</span> mm</span>
             </div>
-            <div class="export-row" style="margin-top: 8px;">
-                <button class="btn btn-primary" id="btnExportAll" onclick="exportCSV(false)" disabled>Export All CSV</button>
-                <button class="btn btn-secondary" id="btnExportRange" onclick="exportCSV(true)" disabled>Export Range CSV</button>
+            <div style="font-size: 11px; color: #666; margin-bottom: 10px;">
+                Drag the vertical lines on the chart to adjust crop range. Processed data (orange) updates in real-time.
+            </div>
+            <div class="export-row">
+                <button class="btn btn-primary" id="btnExport" onclick="exportCSV()" disabled>Export CSV</button>
+                <button class="btn btn-secondary" id="btnExportRaw" onclick="exportRawCSV()" disabled>Export Raw</button>
                 <span class="export-info">
-                    Total: <span id="totalPoints">0</span> |
-                    Range: <span id="rangePoints">0</span>
+                    Raw: <span id="totalPoints">0</span> |
+                    Processed: <span id="interpPoints">0</span>
                 </span>
             </div>
         </div>
@@ -480,38 +538,664 @@
         <div class="panel" id="scanInfoPanel" style="display:none;">
             <h3>Scan Result</h3>
             <div class="info-grid">
-                <span class="label">Actual Start</span><span class="value" id="resStart">-</span>
-                <span class="label">Actual End</span><span class="value" id="resEnd">-</span>
                 <span class="label">Duration</span><span class="value" id="resDuration">-</span>
                 <span class="label">Points</span><span class="value" id="resPoints">-</span>
+                <span class="label">Position Range</span><span class="value" id="resPosRange">-</span>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-const API = '';
-let sseSource = null;
-let scanData = [];  // Array of {position_mm, power, power_unit, timestamp}
+// ============================================================
+//  USBTMC over WebUSB
+// ============================================================
+class USBTMC {
+    constructor() {
+        this.device = null;
+        this.interfaceNumber = -1;
+        this.endpointIn = -1;
+        this.endpointOut = -1;
+        this._bTag = 0;
+    }
+
+    _nextTag() {
+        this._bTag = (this._bTag % 255) + 1;
+        return this._bTag;
+    }
+
+    async open(device) {
+        this.device = device;
+        await device.open();
+        if (device.configuration === null) {
+            await device.selectConfiguration(1);
+        }
+        for (const iface of device.configuration.interfaces) {
+            for (const alt of iface.alternates) {
+                if (alt.interfaceClass === 0xFE && alt.interfaceSubclass === 0x03) {
+                    this.interfaceNumber = iface.interfaceNumber;
+                    for (const ep of alt.endpoints) {
+                        if (ep.type === 'bulk' && ep.direction === 'out')
+                            this.endpointOut = ep.endpointNumber;
+                        else if (ep.type === 'bulk' && ep.direction === 'in')
+                            this.endpointIn = ep.endpointNumber;
+                    }
+                }
+            }
+        }
+        if (this.interfaceNumber === -1)
+            throw new Error('No USBTMC interface found on this device');
+        await device.claimInterface(this.interfaceNumber);
+    }
+
+    async write(command) {
+        const tag = this._nextTag();
+        const payload = new TextEncoder().encode(command + '\n');
+        const size = payload.length;
+        const padding = (4 - (size % 4)) % 4;
+        const buf = new ArrayBuffer(12 + size + padding);
+        const view = new DataView(buf);
+        const arr = new Uint8Array(buf);
+        view.setUint8(0, 1);
+        view.setUint8(1, tag);
+        view.setUint8(2, ~tag & 0xFF);
+        view.setUint32(4, size, true);
+        view.setUint8(8, 0x01);
+        arr.set(payload, 12);
+        await this.device.transferOut(this.endpointOut, buf);
+    }
+
+    async read(maxLen = 4096) {
+        const tag = this._nextTag();
+        const req = new ArrayBuffer(12);
+        const rv = new DataView(req);
+        rv.setUint8(0, 2);
+        rv.setUint8(1, tag);
+        rv.setUint8(2, ~tag & 0xFF);
+        rv.setUint32(4, maxLen, true);
+        await this.device.transferOut(this.endpointOut, req);
+        const result = await this.device.transferIn(this.endpointIn, maxLen + 16);
+        if (result.status !== 'ok')
+            throw new Error('USB transferIn failed: ' + result.status);
+        const dv = new DataView(result.data.buffer);
+        const transferSize = dv.getUint32(4, true);
+        let received = Math.min(result.data.byteLength - 12, transferSize);
+        const output = new Uint8Array(transferSize);
+        output.set(new Uint8Array(result.data.buffer, 12, received));
+        while (received < transferSize) {
+            const extra = await this.device.transferIn(this.endpointIn, maxLen);
+            if (extra.status !== 'ok') break;
+            const chunk = new Uint8Array(extra.data.buffer);
+            const n = Math.min(chunk.length, transferSize - received);
+            output.set(chunk.subarray(0, n), received);
+            received += n;
+        }
+        return new TextDecoder().decode(output).trim();
+    }
+
+    async query(command) {
+        await this.write(command);
+        return await this.read();
+    }
+
+    async close() {
+        if (!this.device) return;
+        try { await this.device.releaseInterface(this.interfaceNumber); } catch {}
+        try { await this.device.close(); } catch {}
+        this.device = null;
+        this.interfaceNumber = -1;
+    }
+}
+
+// ============================================================
+//  PM100D high-level driver (WebUSB)
+// ============================================================
+class PM100DDriver {
+    constructor() {
+        this.tmc = new USBTMC();
+        this.connected = false;
+    }
+
+    async connect() {
+        const device = await navigator.usb.requestDevice({
+            filters: [
+                { vendorId: 0x1313, productId: 0x8078 },
+                { classCode: 0xFE, subclassCode: 0x03 },
+            ]
+        });
+        await this.tmc.open(device);
+        this.connected = true;
+    }
+
+    async reconnect() {
+        const devices = await navigator.usb.getDevices();
+        const dev = devices.find(d => d.vendorId === 0x1313 && d.productId === 0x8078);
+        if (dev) {
+            await this.tmc.open(dev);
+            this.connected = true;
+            return true;
+        }
+        return false;
+    }
+
+    async disconnect() {
+        await this.tmc.close();
+        this.connected = false;
+    }
+
+    // Info
+    async idn()            { return this.tmc.query('*IDN?'); }
+    async sensorInfo()     { return this.tmc.query('SYST:SENS:IDN?'); }
+    async wavelengthRange() {
+        const min = parseFloat(await this.tmc.query('SENS:CORR:WAV? MIN'));
+        const max = parseFloat(await this.tmc.query('SENS:CORR:WAV? MAX'));
+        return [min, max];
+    }
+    async powerRangeLimits() {
+        const min = parseFloat(await this.tmc.query('SENS:POW:DC:RANG:UPP? MIN'));
+        const max = parseFloat(await this.tmc.query('SENS:POW:DC:RANG:UPP? MAX'));
+        return [min, max];
+    }
+
+    // Measurement
+    async readPower()      { return parseFloat(await this.tmc.query('MEAS:SCAL:POW?')); }
+
+    // Config get
+    async getWavelength()  { return parseFloat(await this.tmc.query('SENS:CORR:WAV?')); }
+    async getPowerRange()  { return parseFloat(await this.tmc.query('SENS:POW:DC:RANG:UPP?')); }
+    async getAutoRange()   { return parseInt(await this.tmc.query('SENS:POW:DC:RANG:AUTO?')) === 1; }
+    async getAveraging()   { return parseInt(await this.tmc.query('SENS:AVER:COUN?')); }
+    async getPowerUnit()   { return (await this.tmc.query('SENS:POW:DC:UNIT?')).replace(/"/g, ''); }
+
+    // Config set
+    async setWavelength(nm)      { await this.tmc.write(`SENS:CORR:WAV ${nm}`); }
+    async setPowerRange(w)       { await this.tmc.write(`SENS:POW:DC:RANG:UPP ${w}`); }
+    async setAutoRange(on)       { await this.tmc.write(`SENS:POW:DC:RANG:AUTO ${on ? 1 : 0}`); }
+    async setAveraging(count)    { await this.tmc.write(`SENS:AVER:COUN ${count}`); }
+    async setPowerUnit(unit)     { await this.tmc.write(`SENS:POW:DC:UNIT ${unit.toUpperCase()}`); }
+}
+
+// ============================================================
+//  Async Mutex for serializing WebUSB access
+// ============================================================
+class AsyncMutex {
+    constructor() { this._queue = []; this._locked = false; }
+    async acquire() {
+        if (!this._locked) { this._locked = true; return; }
+        return new Promise(resolve => this._queue.push(resolve));
+    }
+    release() {
+        if (this._queue.length > 0) {
+            this._queue.shift()();
+        } else {
+            this._locked = false;
+        }
+    }
+}
+
+const usbMutex = new AsyncMutex();
+
+// Wrapper: execute a callback with exclusive USB access
+async function withUSB(fn) {
+    await usbMutex.acquire();
+    try { return await fn(); }
+    finally { usbMutex.release(); }
+}
+
+// ============================================================
+//  FTDI WebUSB Transport
+// ============================================================
+class FTDIPort {
+    constructor() {
+        this.device = null;
+        this.interfaceNumber = -1;
+        this.endpointIn = -1;
+        this.endpointOut = -1;
+        this._rxBuffer = new Uint8Array(0);
+        this._readerRunning = false;
+    }
+
+    async connect() {
+        this.device = await navigator.usb.requestDevice({
+            filters: [{ vendorId: 0x0403 }]
+        });
+        await this._openDevice();
+    }
+
+    async reconnect() {
+        const devices = await navigator.usb.getDevices();
+        const dev = devices.find(d => d.vendorId === 0x0403);
+        if (!dev) return false;
+        this.device = dev;
+        await this._openDevice();
+        return true;
+    }
+
+    async _openDevice() {
+        await this.device.open();
+        if (this.device.configuration === null) {
+            await this.device.selectConfiguration(1);
+        }
+        const iface = this.device.configuration.interfaces[0];
+        this.interfaceNumber = iface.interfaceNumber;
+        await this.device.claimInterface(this.interfaceNumber);
+        const alt = iface.alternates[0];
+        for (const ep of alt.endpoints) {
+            if (ep.type === 'bulk' && ep.direction === 'in') this.endpointIn = ep.endpointNumber;
+            if (ep.type === 'bulk' && ep.direction === 'out') this.endpointOut = ep.endpointNumber;
+        }
+        await this._configureFTDI();
+        this._rxBuffer = new Uint8Array(0);
+        this._readerRunning = true;
+        this._readLoop();
+    }
+
+    async _configureFTDI() {
+        const ct = { requestType: 'vendor', recipient: 'device' };
+        // Reset
+        await this.device.controlTransferOut({ ...ct, request: 0x00, value: 0x0000, index: 0 });
+        // Set baud rate 115200 (divisor 0x001A)
+        await this.device.controlTransferOut({ ...ct, request: 0x03, value: 0x001A, index: 0 });
+        // 8 data bits, no parity, 1 stop bit
+        await this.device.controlTransferOut({ ...ct, request: 0x04, value: 0x0008, index: 0 });
+        // No flow control
+        await this.device.controlTransferOut({ ...ct, request: 0x02, value: 0x0000, index: 0 });
+        // Purge RX
+        await this.device.controlTransferOut({ ...ct, request: 0x00, value: 0x0001, index: 0 });
+        // Purge TX
+        await this.device.controlTransferOut({ ...ct, request: 0x00, value: 0x0002, index: 0 });
+        // Set DTR
+        await this.device.controlTransferOut({ ...ct, request: 0x01, value: 0x0101, index: 0 });
+        // Set RTS
+        await this.device.controlTransferOut({ ...ct, request: 0x01, value: 0x0202, index: 0 });
+    }
+
+    async write(data) {
+        await this.device.transferOut(this.endpointOut, data);
+    }
+
+    async _readLoop() {
+        while (this._readerRunning) {
+            try {
+                const result = await this.device.transferIn(this.endpointIn, 64);
+                if (result.status === 'ok' && result.data.byteLength > 2) {
+                    // Strip 2-byte FTDI modem status header
+                    const payload = new Uint8Array(result.data.buffer, 2);
+                    const newBuf = new Uint8Array(this._rxBuffer.length + payload.length);
+                    newBuf.set(this._rxBuffer);
+                    newBuf.set(payload, this._rxBuffer.length);
+                    this._rxBuffer = newBuf;
+                }
+            } catch (e) {
+                if (this._readerRunning) break;
+            }
+        }
+    }
+
+    async disconnect() {
+        this._readerRunning = false;
+        try { await this.device.releaseInterface(this.interfaceNumber); } catch {}
+        try { await this.device.close(); } catch {}
+        this.device = null;
+        this._rxBuffer = new Uint8Array(0);
+    }
+}
+
+// ============================================================
+//  APT Protocol over WebUSB
+// ============================================================
+const APT_SOURCE = 0x01;
+const APT_DEST = 0x50;
+
+const HW_REQ_INFO = 0x0005;
+const HW_GET_INFO = 0x0006;
+const HW_NO_FLASH_PROGRAMMING = 0x0018;
+const MOD_SET_CHANENABLESTATE = 0x0210;
+const MOT_SET_VELPARAMS = 0x0413;
+const MOT_REQ_VELPARAMS = 0x0414;
+const MOT_GET_VELPARAMS = 0x0415;
+const MOT_MOVE_HOME = 0x0443;
+const MOT_MOVE_RELATIVE = 0x0448;
+const MOT_MOVE_ABSOLUTE = 0x0453;
+const MOT_MOVE_STOP = 0x0465;
+const MOT_MOVE_JOG = 0x046A;
+const MOT_REQ_DCSTATUSUPDATE = 0x0490;
+const MOT_GET_DCSTATUSUPDATE = 0x0491;
+
+const STATUS_FWD_HW_LIM = 0x01;
+const STATUS_REV_HW_LIM = 0x02;
+const STATUS_MOVING_BITS = 0x10 | 0x20 | 0x40 | 0x80 | 0x200;
+const STATUS_HOMED = 0x400;
+
+const T_APT = 2048 / 6000000;
+
+class APTProtocol {
+    constructor(port) {
+        this.port = port;
+    }
+
+    async sendShort(msgId, param1 = 0, param2 = 0) {
+        const buf = new Uint8Array(6);
+        const dv = new DataView(buf.buffer);
+        dv.setUint16(0, msgId, true);
+        buf[2] = param1;
+        buf[3] = param2;
+        buf[4] = APT_DEST;
+        buf[5] = APT_SOURCE;
+        await this.port.write(buf);
+    }
+
+    async sendLong(msgId, data) {
+        const buf = new Uint8Array(6 + data.length);
+        const dv = new DataView(buf.buffer);
+        dv.setUint16(0, msgId, true);
+        dv.setUint16(2, data.length, true);
+        buf[4] = APT_DEST | 0x80;
+        buf[5] = APT_SOURCE;
+        buf.set(data, 6);
+        await this.port.write(buf);
+    }
+
+    async recvMessage(timeoutMs = 2000) {
+        const deadline = performance.now() + timeoutMs;
+        while (performance.now() < deadline) {
+            if (this.port._rxBuffer.length >= 6) {
+                const header = this.port._rxBuffer.slice(0, 6);
+                const dv = new DataView(header.buffer);
+                const msgId = dv.getUint16(0, true);
+                if (header[4] & 0x80) {
+                    const dataLen = dv.getUint16(2, true);
+                    if (this.port._rxBuffer.length >= 6 + dataLen) {
+                        const data = this.port._rxBuffer.slice(6, 6 + dataLen);
+                        this.port._rxBuffer = this.port._rxBuffer.slice(6 + dataLen);
+                        return { msgId, data };
+                    }
+                } else {
+                    this.port._rxBuffer = this.port._rxBuffer.slice(6);
+                    return { msgId, param1: header[2], param2: header[3] };
+                }
+            }
+            await new Promise(r => setTimeout(r, 10));
+        }
+        return null;
+    }
+
+    async waitForMessage(targetMsgId, timeoutMs = 5000) {
+        const deadline = performance.now() + timeoutMs;
+        while (performance.now() < deadline) {
+            const msg = await this.recvMessage(deadline - performance.now());
+            if (msg && msg.msgId === targetMsgId) return msg;
+            if (!msg) break;
+        }
+        return null;
+    }
+}
+
+// ============================================================
+//  KDC101 high-level driver (WebUSB)
+// ============================================================
+class KDC101Driver {
+    constructor() {
+        this.port = new FTDIPort();
+        this.apt = new APTProtocol(this.port);
+        this.countsPerMm = 34555;
+        this.connected = false;
+    }
+
+    async connect() {
+        await this.port.connect();
+        this.connected = true;
+        await this.apt.sendShort(HW_NO_FLASH_PROGRAMMING, 0, 0);
+        await sleep(100);
+        await this.apt.sendShort(MOD_SET_CHANENABLESTATE, 0x01, 0x01);
+        await sleep(100);
+    }
+
+    async reconnect() {
+        const ok = await this.port.reconnect();
+        if (!ok) return false;
+        this.connected = true;
+        await this.apt.sendShort(HW_NO_FLASH_PROGRAMMING, 0, 0);
+        await sleep(100);
+        await this.apt.sendShort(MOD_SET_CHANENABLESTATE, 0x01, 0x01);
+        await sleep(100);
+        return true;
+    }
+
+    async disconnect() {
+        this.connected = false;
+        await this.port.disconnect();
+    }
+
+    async getHwInfo() {
+        await this.apt.sendShort(HW_REQ_INFO, 0, 0);
+        const msg = await this.apt.waitForMessage(HW_GET_INFO);
+        if (!msg || !msg.data) throw new Error('No HW_GET_INFO response');
+        const dv = new DataView(msg.data.buffer);
+        const serial = dv.getUint32(0, true);
+        const model = new TextDecoder().decode(msg.data.slice(4, 12)).replace(/\0/g, '').trim();
+        const fwMinor = msg.data[14], fwInterim = msg.data[15], fwMajor = msg.data[16];
+        return { serial, model, firmware: `${fwMajor}.${fwInterim}.${fwMinor}` };
+    }
+
+    async getStatus() {
+        await this.apt.sendShort(MOT_REQ_DCSTATUSUPDATE, 0x01, 0);
+        const msg = await this.apt.waitForMessage(MOT_GET_DCSTATUSUPDATE, 2000);
+        if (!msg || !msg.data) throw new Error('No status response');
+        const dv = new DataView(msg.data.buffer);
+        const positionCounts = dv.getInt32(2, true);
+        const velocity = dv.getUint16(6, true);
+        const statusBits = dv.getUint32(10, true);
+        return {
+            position_counts: positionCounts,
+            position_mm: positionCounts / this.countsPerMm,
+            velocity,
+            status_bits: statusBits,
+            is_homed: !!(statusBits & STATUS_HOMED),
+            is_moving: !!(statusBits & STATUS_MOVING_BITS),
+            fwd_limit: !!(statusBits & STATUS_FWD_HW_LIM),
+            rev_limit: !!(statusBits & STATUS_REV_HW_LIM),
+        };
+    }
+
+    async home() { await this.apt.sendShort(MOT_MOVE_HOME, 0x01, 0); }
+
+    async moveAbsolute(positionMm) {
+        const counts = Math.round(positionMm * this.countsPerMm);
+        const data = new Uint8Array(6);
+        const dv = new DataView(data.buffer);
+        dv.setUint16(0, 0x01, true);
+        dv.setInt32(2, counts, true);
+        await this.apt.sendLong(MOT_MOVE_ABSOLUTE, data);
+    }
+
+    async moveRelative(distanceMm) {
+        const counts = Math.round(distanceMm * this.countsPerMm);
+        const data = new Uint8Array(6);
+        const dv = new DataView(data.buffer);
+        dv.setUint16(0, 0x01, true);
+        dv.setInt32(2, counts, true);
+        await this.apt.sendLong(MOT_MOVE_RELATIVE, data);
+    }
+
+    async jog(direction) { await this.apt.sendShort(MOT_MOVE_JOG, 0x01, direction); }
+
+    async stop(immediate = false) {
+        await this.apt.sendShort(MOT_MOVE_STOP, 0x01, immediate ? 0x01 : 0x02);
+    }
+
+    async setVelocityParams(maxVelMmS, accelMmS2, minVelMmS = 0) {
+        const minVelAPT = Math.round(minVelMmS * this.countsPerMm * T_APT * 65536);
+        const accelAPT = Math.round(accelMmS2 * this.countsPerMm * T_APT * T_APT * 65536);
+        const maxVelAPT = Math.round(maxVelMmS * this.countsPerMm * T_APT * 65536);
+        const data = new Uint8Array(14);
+        const dv = new DataView(data.buffer);
+        dv.setUint16(0, 0x01, true);
+        dv.setUint32(2, minVelAPT, true);
+        dv.setUint32(6, accelAPT, true);
+        dv.setUint32(10, maxVelAPT, true);
+        await this.apt.sendLong(MOT_SET_VELPARAMS, data);
+    }
+
+    async getVelocityParams() {
+        await this.apt.sendShort(MOT_REQ_VELPARAMS, 0x01, 0);
+        const msg = await this.apt.waitForMessage(MOT_GET_VELPARAMS, 2000);
+        if (!msg || !msg.data) throw new Error('No velocity params response');
+        const dv = new DataView(msg.data.buffer);
+        const minVel = dv.getUint32(2, true);
+        const accel = dv.getUint32(6, true);
+        const maxVel = dv.getUint32(10, true);
+        const divisorVel = this.countsPerMm * T_APT * 65536;
+        const divisorAcc = this.countsPerMm * T_APT * T_APT * 65536;
+        return {
+            min_velocity_mm_s: minVel / divisorVel,
+            acceleration_mm_s2: accel / divisorAcc,
+            max_velocity_mm_s: maxVel / divisorVel,
+        };
+    }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ============================================================
+//  Globals
+// ============================================================
+const pm = new PM100DDriver();
+const kdc = new KDC101Driver();
+let pmConnected = false;
+let kdcConnected = false;
+let cachedUnit = 'W';
+let scanData = [];
 let scanDataMin = 0;
 let scanDataMax = 1;
+let powerDisplayTimer = null;
+let positionPollTimer = null;
+let scanningActive = false;
+let scanAbort = false;
 
-// --- Chart ---
+// Crop lines
+let cropLeft = 0;
+let cropRight = 0;
+let cropLinesVisible = false;
+let draggingLine = null; // 'left', 'right', or null
+let processedData = [];  // [{uniformX, originalX, power}]
+
+// ============================================================
+//  Power formatting
+// ============================================================
+function formatPower(p) {
+    const abs = Math.abs(p);
+    if (abs === 0) return '0.000';
+    if (abs < 1e-9) return (p * 1e12).toFixed(3) + ' pW';
+    if (abs < 1e-6) return (p * 1e9).toFixed(3) + ' nW';
+    if (abs < 1e-3) return (p * 1e6).toFixed(3) + ' uW';
+    if (abs < 1)    return (p * 1e3).toFixed(3) + ' mW';
+    return p.toFixed(6) + ' W';
+}
+
+function updatePowerDisplay(power, unit) {
+    const el  = document.getElementById('powerValue');
+    const uel = document.getElementById('powerUnitDisplay');
+    if (unit.toUpperCase() === 'DBM') {
+        el.textContent  = power.toFixed(3);
+        uel.textContent = 'dBm';
+    } else {
+        el.textContent  = formatPower(power).replace(/ [a-zA-Z]+$/, '');
+        const suffix = formatPower(power).match(/ [a-zA-Z]+$/);
+        uel.textContent = suffix ? suffix[0].trim() : 'W';
+    }
+}
+
+// ============================================================
+//  Chart with Crop Line Plugin
+// ============================================================
+const cropLinePlugin = {
+    id: 'cropLines',
+    afterDraw(chart) {
+        if (!cropLinesVisible || scanData.length === 0) return;
+
+        const { ctx, chartArea, scales: { x } } = chart;
+        if (!chartArea) return;
+
+        const leftX = x.getPixelForValue(cropLeft);
+        const rightX = x.getPixelForValue(cropRight);
+        const top = chartArea.top;
+        const bottom = chartArea.bottom;
+        const height = bottom - top;
+
+        ctx.save();
+
+        // Shade outside regions
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        if (leftX > chartArea.left) {
+            ctx.fillRect(chartArea.left, top, leftX - chartArea.left, height);
+        }
+        if (rightX < chartArea.right) {
+            ctx.fillRect(rightX, top, chartArea.right - rightX, height);
+        }
+
+        // Draw crop lines
+        ctx.setLineDash([6, 4]);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#f59e0b';
+
+        ctx.beginPath();
+        ctx.moveTo(leftX, top);
+        ctx.lineTo(leftX, bottom);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rightX, top);
+        ctx.lineTo(rightX, bottom);
+        ctx.stroke();
+
+        // Draw drag handles (circles at top)
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#f59e0b';
+
+        ctx.beginPath();
+        ctx.arc(leftX, top + 12, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(rightX, top + 12, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+    }
+};
+
 const ctx = document.getElementById('scanChart').getContext('2d');
 const chart = new Chart(ctx, {
     type: 'scatter',
     data: {
-        datasets: [{
-            label: 'Power vs Position',
-            data: [],
-            borderColor: '#4caf50',
-            backgroundColor: 'rgba(76,175,80,0.3)',
-            borderWidth: 1.5,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            showLine: true,
-            tension: 0.1,
-        }]
+        datasets: [
+            {
+                label: 'Raw Scan Data',
+                data: [],
+                borderColor: '#4caf50',
+                backgroundColor: 'rgba(76,175,80,0.3)',
+                borderWidth: 1.5,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                showLine: true,
+                tension: 0.1,
+            },
+            {
+                label: 'Processed (to save)',
+                data: [],
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245,158,11,0.05)',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                showLine: true,
+                tension: 0,
+            }
+        ]
     },
     options: {
         responsive: true,
@@ -531,9 +1215,18 @@ const chart = new Chart(ctx, {
             }
         },
         plugins: {
-            legend: { display: false },
+            legend: {
+                display: true,
+                labels: {
+                    color: '#888',
+                    font: { size: 11 },
+                    usePointStyle: true,
+                    pointStyle: 'line',
+                }
+            }
         }
-    }
+    },
+    plugins: [cropLinePlugin]
 });
 
 function addChartPoint(position, power) {
@@ -543,10 +1236,151 @@ function addChartPoint(position, power) {
 
 function clearChart() {
     chart.data.datasets[0].data = [];
+    chart.data.datasets[1].data = [];
+    cropLinesVisible = false;
+    processedData = [];
     chart.update();
 }
 
-// --- Logging ---
+// ============================================================
+//  Crop Line Mouse Interaction
+// ============================================================
+const scanCanvas = document.getElementById('scanChart');
+
+function getMouseX(e) {
+    const rect = scanCanvas.getBoundingClientRect();
+    return e.clientX - rect.left;
+}
+
+function getNearCropLine(mouseX) {
+    if (!cropLinesVisible || !chart.chartArea) return null;
+    const leftPixel = chart.scales.x.getPixelForValue(cropLeft);
+    const rightPixel = chart.scales.x.getPixelForValue(cropRight);
+    const threshold = 10;
+    // If lines are very close, prefer the nearest one
+    const dLeft = Math.abs(mouseX - leftPixel);
+    const dRight = Math.abs(mouseX - rightPixel);
+    if (dLeft < threshold && dLeft <= dRight) return 'left';
+    if (dRight < threshold) return 'right';
+    return null;
+}
+
+scanCanvas.addEventListener('mousedown', (e) => {
+    if (!cropLinesVisible) return;
+    const mouseX = getMouseX(e);
+    const near = getNearCropLine(mouseX);
+    if (near) {
+        draggingLine = near;
+        e.preventDefault();
+    }
+});
+
+scanCanvas.addEventListener('mousemove', (e) => {
+    if (!cropLinesVisible || !chart.chartArea) return;
+    const mouseX = getMouseX(e);
+
+    if (draggingLine) {
+        const dataValue = chart.scales.x.getValueForPixel(mouseX);
+        if (draggingLine === 'left') {
+            cropLeft = Math.max(scanDataMin, Math.min(dataValue, cropRight - 0.001));
+        } else {
+            cropRight = Math.min(scanDataMax, Math.max(dataValue, cropLeft + 0.001));
+        }
+        updateCropInfo();
+        computeProcessedData();
+        chart.update('none');
+    } else {
+        const near = getNearCropLine(mouseX);
+        scanCanvas.style.cursor = near ? 'col-resize' : 'default';
+    }
+});
+
+scanCanvas.addEventListener('mouseup', () => {
+    if (draggingLine) {
+        draggingLine = null;
+        scanCanvas.style.cursor = 'default';
+    }
+});
+
+scanCanvas.addEventListener('mouseleave', () => {
+    if (draggingLine) {
+        draggingLine = null;
+        scanCanvas.style.cursor = 'default';
+    }
+});
+
+// ============================================================
+//  Crop Info & Processed Data
+// ============================================================
+function updateCropInfo() {
+    document.getElementById('cropLeftVal').textContent = cropLeft.toFixed(3);
+    document.getElementById('cropRightVal').textContent = cropRight.toFixed(3);
+}
+
+function computeProcessedData() {
+    if (!cropLinesVisible || scanData.length < 2) {
+        processedData = [];
+        chart.data.datasets[1].data = [];
+        document.getElementById('interpPoints').textContent = '0';
+        return;
+    }
+
+    // Filter and sort by position
+    let filtered = scanData.filter(p => p.position_mm >= cropLeft && p.position_mm <= cropRight);
+    if (filtered.length < 2) {
+        processedData = [];
+        chart.data.datasets[1].data = [];
+        document.getElementById('interpPoints').textContent = '0';
+        return;
+    }
+
+    filtered.sort((a, b) => a.position_mm - b.position_mm);
+
+    // Generate uniformly spaced X positions
+    const n = filtered.length;
+    const range = cropRight - cropLeft;
+    const step = range / (n - 1);
+
+    processedData = [];
+    for (let i = 0; i < n; i++) {
+        const targetX = cropLeft + step * i;
+
+        // Linear interpolation: find surrounding points
+        let j = 0;
+        while (j < filtered.length - 1 && filtered[j + 1].position_mm <= targetX) j++;
+
+        let power;
+        if (j >= filtered.length - 1) {
+            power = filtered[filtered.length - 1].power;
+        } else {
+            const x0 = filtered[j].position_mm;
+            const x1 = filtered[j + 1].position_mm;
+            const y0 = filtered[j].power;
+            const y1 = filtered[j + 1].power;
+            if (x1 === x0) {
+                power = y0;
+            } else {
+                const t = (targetX - x0) / (x1 - x0);
+                power = y0 + t * (y1 - y0);
+            }
+        }
+
+        processedData.push({
+            uniformX: step * i,    // X starting from 0
+            originalX: targetX,    // Original position for overlay display
+            power: power,
+        });
+    }
+
+    // Update chart overlay (using original X for visual alignment)
+    chart.data.datasets[1].data = processedData.map(p => ({ x: p.originalX, y: p.power }));
+
+    document.getElementById('interpPoints').textContent = processedData.length;
+}
+
+// ============================================================
+//  Logging
+// ============================================================
 function log(msg, type = '') {
     const box = document.getElementById('logBox');
     const cls = type === 'error' ? 'log-error' : type === 'ok' ? 'log-ok' : '';
@@ -555,88 +1389,168 @@ function log(msg, type = '') {
     box.scrollTop = box.scrollHeight;
 }
 
-// --- API helpers ---
-async function api(method, path, body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(API + path, opts);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-    return data;
-}
-
-// --- Device: PM100D ---
-async function scanPM() {
-    try {
-        const devices = await api('GET', '/pm100d/device/list');
-        const sel = document.getElementById('pmSelect');
-        sel.innerHTML = '';
-        if (devices.length === 0) {
-            sel.innerHTML = '<option value="">No devices</option>';
-            log('PM100D scan: none found', 'error');
-        } else {
-            devices.forEach(d => { sel.innerHTML += `<option value="${d}">${d}</option>`; });
-            log(`PM100D scan: ${devices.length} found`, 'ok');
-        }
-    } catch (e) { log('PM100D scan error: ' + e.message, 'error'); }
-}
-
+// ============================================================
+//  PM100D WebUSB Connection
+// ============================================================
 async function connectPM() {
-    const resource = document.getElementById('pmSelect').value;
-    if (!resource) { log('No PM100D selected', 'error'); return; }
     try {
-        await api('POST', '/pm100d/device/connect', { visa_resource: resource });
-        log('PM100D connected', 'ok');
+        await pm.connect();
+        pmConnected = true;
+        log('PM100D connected via WebUSB', 'ok');
         updatePMUI(true);
+        await loadPMInfo();
         await refreshPMConfig();
-    } catch (e) { log('PM100D connect error: ' + e.message, 'error'); }
+        startPowerDisplay();
+    } catch (e) {
+        log('PM100D connect error: ' + e.message, 'error');
+    }
 }
 
 async function disconnectPM() {
+    stopPowerDisplay();
     try {
-        await api('POST', '/pm100d/device/disconnect');
+        await pm.disconnect();
+        pmConnected = false;
         log('PM100D disconnected', 'ok');
         updatePMUI(false);
-    } catch (e) { log('PM100D disconnect error: ' + e.message, 'error'); }
+    } catch (e) {
+        log('PM100D disconnect error: ' + e.message, 'error');
+    }
 }
 
 function updatePMUI(connected) {
     document.getElementById('pmDot').className = 'status-dot ' + (connected ? 'on' : 'off');
     document.getElementById('btnPmConnect').disabled = connected;
     document.getElementById('btnPmDisconnect').disabled = !connected;
+    document.getElementById('pmInfoPanel').style.display = connected ? 'block' : 'none';
+    if (!connected) {
+        document.getElementById('powerValue').textContent = '---';
+        document.getElementById('powerUnitDisplay').textContent = 'W';
+    }
     updateScanButton();
 }
 
-// --- Device: KDC101 ---
-async function scanKDC() {
+async function loadPMInfo() {
     try {
-        const devices = await api('GET', '/kdc101/device/list');
-        const sel = document.getElementById('kdcSelect');
-        sel.innerHTML = '';
-        if (devices.length === 0) {
-            sel.innerHTML = '<option value="">No devices</option>';
-            log('KDC101 scan: none found', 'error');
-        } else {
-            devices.forEach(d => { sel.innerHTML += `<option value="${d.serial_number}">${d.description} (${d.serial_number})</option>`; });
-            log(`KDC101 scan: ${devices.length} found`, 'ok');
-        }
-    } catch (e) { log('KDC101 scan error: ' + e.message, 'error'); }
+        await withUSB(async () => {
+            const idn = await pm.idn();
+            const sensor = await pm.sensorInfo();
+            const wlRange = await pm.wavelengthRange();
+            const pwrRange = await pm.powerRangeLimits();
+            document.getElementById('pmInfoIdn').textContent = idn;
+            document.getElementById('pmInfoSensor').textContent = sensor;
+            document.getElementById('pmInfoWlRange').textContent = `${wlRange[0]} - ${wlRange[1]} nm`;
+            document.getElementById('pmInfoPwrRange').textContent = `${pwrRange[0].toExponential(2)} - ${pwrRange[1].toExponential(2)} W`;
+        });
+    } catch (e) { log('PM100D info error: ' + e.message, 'error'); }
 }
 
-async function connectKDC() {
-    const sn = document.getElementById('kdcSelect').value;
-    if (!sn) { log('No KDC101 selected', 'error'); return; }
+// ============================================================
+//  PM100D Config (WebUSB direct)
+// ============================================================
+async function refreshPMConfig() {
     try {
-        await api('POST', '/kdc101/device/connect', { serial_number: sn });
-        log('KDC101 connected', 'ok');
+        await withUSB(async () => {
+            const wl   = await pm.getWavelength();
+            const avg  = await pm.getAveraging();
+            const unit = await pm.getPowerUnit();
+            const rng  = await pm.getPowerRange();
+            const auto = await pm.getAutoRange();
+            cachedUnit = unit;
+            document.getElementById('cfgWavelength').value = wl;
+            document.getElementById('cfgAveraging').value  = avg;
+            document.getElementById('cfgUnit').value        = unit;
+            document.getElementById('cfgRange').value       = rng;
+            document.getElementById('cfgAutoRange').checked = auto;
+        });
+    } catch (e) { log('PM100D config error: ' + e.message, 'error'); }
+}
+
+async function setWavelength() {
+    try {
+        const v = parseFloat(document.getElementById('cfgWavelength').value);
+        await withUSB(() => pm.setWavelength(v));
+        log(`Wavelength set to ${v} nm`, 'ok');
+    } catch (e) { log('Wavelength error: ' + e.message, 'error'); }
+}
+
+async function setAveraging() {
+    try {
+        const v = parseInt(document.getElementById('cfgAveraging').value);
+        await withUSB(() => pm.setAveraging(v));
+        log(`Averaging set to ${v}`, 'ok');
+    } catch (e) { log('Averaging error: ' + e.message, 'error'); }
+}
+
+async function setUnit() {
+    try {
+        const v = document.getElementById('cfgUnit').value;
+        await withUSB(() => pm.setPowerUnit(v));
+        cachedUnit = v;
+        log(`Unit set to ${v}`, 'ok');
+    } catch (e) { log('Unit error: ' + e.message, 'error'); }
+}
+
+async function setRange() {
+    try {
+        const v = parseFloat(document.getElementById('cfgRange').value);
+        await withUSB(() => pm.setPowerRange(v));
+        log(`Range set`, 'ok');
+    } catch (e) { log('Range error: ' + e.message, 'error'); }
+}
+
+async function setAutoRange() {
+    try {
+        const v = document.getElementById('cfgAutoRange').checked;
+        await withUSB(() => pm.setAutoRange(v));
+        log(`Auto range: ${v}`, 'ok');
+    } catch (e) { log('Auto range error: ' + e.message, 'error'); }
+}
+
+// ============================================================
+//  Real-time Power Display
+// ============================================================
+function startPowerDisplay() {
+    stopPowerDisplay();
+    if (!scanningActive) powerDisplayLoop();
+}
+
+function stopPowerDisplay() {
+    if (powerDisplayTimer) { clearTimeout(powerDisplayTimer); powerDisplayTimer = null; }
+}
+
+async function powerDisplayLoop() {
+    if (!pmConnected || scanningActive) return;
+    try {
+        await withUSB(async () => {
+            const power = await pm.readPower();
+            updatePowerDisplay(power, cachedUnit);
+        });
+    } catch (e) { /* skip on error */ }
+    if (pmConnected && !scanningActive) {
+        powerDisplayTimer = setTimeout(powerDisplayLoop, 500);
+    }
+}
+
+// ============================================================
+//  KDC101 WebUSB Connection
+// ============================================================
+async function connectKDC() {
+    try {
+        await kdc.connect();
+        kdcConnected = true;
+        log('KDC101 connected via WebUSB', 'ok');
         updateKDCUI(true);
-        await refreshStagePosition();
+        await loadKDCInfo();
+        startPositionPolling();
     } catch (e) { log('KDC101 connect error: ' + e.message, 'error'); }
 }
 
 async function disconnectKDC() {
+    stopPositionPolling();
     try {
-        await api('POST', '/kdc101/device/disconnect');
+        await kdc.disconnect();
+        kdcConnected = false;
         log('KDC101 disconnected', 'ok');
         updateKDCUI(false);
     } catch (e) { log('KDC101 disconnect error: ' + e.message, 'error'); }
@@ -646,347 +1560,540 @@ function updateKDCUI(connected) {
     document.getElementById('kdcDot').className = 'status-dot ' + (connected ? 'on' : 'off');
     document.getElementById('btnKdcConnect').disabled = connected;
     document.getElementById('btnKdcDisconnect').disabled = !connected;
+    document.getElementById('kdcInfoPanel').style.display = connected ? 'block' : 'none';
+    if (!connected) {
+        document.getElementById('stagePosition').textContent = '--';
+    }
     updateScanButton();
 }
 
-function updateScanButton() {
-    const pmOk = !document.getElementById('btnPmConnect').disabled;
-    const kdcOk = !document.getElementById('btnKdcConnect').disabled;
-    const badge = document.getElementById('scanBadge');
-    const scanning = badge.textContent === 'SCANNING' || badge.textContent === 'PREPARING';
-    document.getElementById('btnStartScan').disabled = !(pmOk && kdcOk) || scanning;
-}
-
-// --- PM100D Config ---
-async function refreshPMConfig() {
+async function loadKDCInfo() {
     try {
-        const cfg = await api('GET', '/pm100d/config');
-        document.getElementById('cfgWavelength').value = cfg.wavelength;
-        document.getElementById('cfgAveraging').value = cfg.averaging;
-        document.getElementById('cfgUnit').value = cfg.power_unit.replace(/"/g, '');
-        document.getElementById('cfgRange').value = cfg.power_range;
-        document.getElementById('cfgAutoRange').checked = cfg.auto_range;
-    } catch (e) { log('PM100D config error: ' + e.message, 'error'); }
+        const info = await kdc.getHwInfo();
+        document.getElementById('kdcInfoSerial').textContent = info.serial;
+        document.getElementById('kdcInfoModel').textContent = info.model;
+        document.getElementById('kdcInfoFW').textContent = info.firmware;
+    } catch (e) { log('KDC101 info error: ' + e.message, 'error'); }
 }
 
-async function setWavelength() {
+// ============================================================
+//  Position Polling
+// ============================================================
+function startPositionPolling() {
+    stopPositionPolling();
+    positionPollLoop();
+}
+
+function stopPositionPolling() {
+    if (positionPollTimer) { clearTimeout(positionPollTimer); positionPollTimer = null; }
+}
+
+async function positionPollLoop() {
+    if (!kdcConnected || scanningActive) return;
     try {
-        const v = parseFloat(document.getElementById('cfgWavelength').value);
-        await api('PUT', '/pm100d/config/wavelength', { wavelength_nm: v });
-        log(`Wavelength set to ${v} nm`, 'ok');
-    } catch (e) { log('Wavelength error: ' + e.message, 'error'); }
+        const st = await kdc.getStatus();
+        document.getElementById('stagePosition').textContent = st.position_mm.toFixed(3);
+    } catch (e) { /* skip */ }
+    if (kdcConnected && !scanningActive) {
+        positionPollTimer = setTimeout(positionPollLoop, 300);
+    }
 }
 
-async function setAveraging() {
-    try {
-        const v = parseInt(document.getElementById('cfgAveraging').value);
-        await api('PUT', '/pm100d/config/averaging', { count: v });
-        log(`Averaging set to ${v}`, 'ok');
-    } catch (e) { log('Averaging error: ' + e.message, 'error'); }
-}
-
-async function setUnit() {
-    try {
-        const v = document.getElementById('cfgUnit').value;
-        await api('PUT', '/pm100d/config/unit', { unit: v });
-        log(`Unit set to ${v}`, 'ok');
-    } catch (e) { log('Unit error: ' + e.message, 'error'); }
-}
-
-async function setRange() {
-    try {
-        const v = parseFloat(document.getElementById('cfgRange').value);
-        await api('PUT', '/pm100d/config/range', { power_range_w: v });
-        log(`Range set`, 'ok');
-    } catch (e) { log('Range error: ' + e.message, 'error'); }
-}
-
-async function setAutoRange() {
-    try {
-        const v = document.getElementById('cfgAutoRange').checked;
-        await api('PUT', '/pm100d/config/range', { auto_range: v });
-        log(`Auto range: ${v}`, 'ok');
-    } catch (e) { log('Auto range error: ' + e.message, 'error'); }
-}
-
-// --- Stage Config ---
 async function refreshStagePosition() {
     try {
-        const st = await api('GET', '/kdc101/device/status');
-        if (st.position_mm != null) {
-            document.getElementById('stagePosition').textContent = st.position_mm.toFixed(3);
-        }
+        const st = await kdc.getStatus();
+        document.getElementById('stagePosition').textContent = st.position_mm.toFixed(3);
     } catch (e) { log('Position refresh error: ' + e.message, 'error'); }
+}
+
+// ============================================================
+//  Stage Motion Controls
+// ============================================================
+async function moveAbsolute() {
+    const pos = parseFloat(document.getElementById('moveAbsPos').value);
+    try {
+        await kdc.moveAbsolute(pos);
+        log(`Moving to ${pos} mm`, 'ok');
+    } catch (e) { log('Move absolute error: ' + e.message, 'error'); }
+}
+
+async function moveRelative(sign) {
+    const dist = parseFloat(document.getElementById('moveRelDist').value) * sign;
+    try {
+        await kdc.moveRelative(dist);
+        log(`Relative move ${dist > 0 ? '+' : ''}${dist} mm`, 'ok');
+    } catch (e) { log('Move relative error: ' + e.message, 'error'); }
+}
+
+async function jogStage(direction) {
+    try {
+        const dir = direction === 'forward' ? 1 : 2;
+        await kdc.jog(dir);
+        log(`Jog ${direction}`, 'ok');
+    } catch (e) { log('Jog error: ' + e.message, 'error'); }
 }
 
 async function homeStage() {
     try {
-        await api('POST', '/kdc101/motion/home');
+        await kdc.home();
         log('Homing started', 'ok');
     } catch (e) { log('Home error: ' + e.message, 'error'); }
 }
 
 async function stopStage() {
     try {
-        await api('POST', '/kdc101/motion/stop', null);
+        await kdc.stop();
         log('Stage stopped', 'ok');
     } catch (e) { log('Stop error: ' + e.message, 'error'); }
 }
 
-// --- Mode Toggle ---
+async function applyVelocity() {
+    const vel = parseFloat(document.getElementById('cfgVelocity').value);
+    const acc = parseFloat(document.getElementById('cfgAccel').value);
+    try {
+        await kdc.setVelocityParams(vel, acc);
+        log(`Velocity: ${vel} mm/s, Accel: ${acc} mm/s²`, 'ok');
+    } catch (e) { log('Velocity set error: ' + e.message, 'error'); }
+}
+
+// ============================================================
+//  Scan Button State
+// ============================================================
+function updateScanButton() {
+    const badge = document.getElementById('scanBadge');
+    const busy = ['SCANNING', 'PREPARING', 'RETURNING'].includes(badge.textContent);
+    document.getElementById('btnStartScan').disabled = !(pmConnected && kdcConnected) || busy;
+}
+
+// ============================================================
+//  Mode Toggle & Estimation
+// ============================================================
 function onModeChange() {
-    const isAbsolute = document.getElementById('modeAbsolute').checked;
-    document.getElementById('absoluteFields').classList.toggle('active', isAbsolute);
-    document.getElementById('relativeFields').classList.toggle('active', !isAbsolute);
+    const isRelative = document.getElementById('modeRelative').checked;
+    document.getElementById('relativeFields').classList.toggle('active', isRelative);
+    document.getElementById('centerFields').classList.toggle('active', !isRelative);
     updateEstimate();
 }
 
-// --- Time Estimation ---
 function updateEstimate() {
-    const mode = document.getElementById('modeAbsolute').checked ? 'absolute' : 'relative';
+    const isRelative = document.getElementById('modeRelative').checked;
     const velocity = parseFloat(document.getElementById('cfgVelocity').value) || 2;
     const accel = parseFloat(document.getElementById('cfgAccel').value) || 5;
+
     let distance;
-
-    if (mode === 'absolute') {
-        const start = parseFloat(document.getElementById('scanStart').value) || 0;
-        const end = parseFloat(document.getElementById('scanEnd').value) || 0;
-        distance = Math.abs(end - start);
-    } else {
+    if (isRelative) {
         distance = parseFloat(document.getElementById('scanDistance').value) || 0;
-    }
-
-    // Trapezoidal estimate
-    const tAccel = velocity / accel;
-    const dAccel = 0.5 * accel * tAccel * tAccel;
-    let time;
-    if (2 * dAccel >= distance) {
-        time = 2 * Math.sqrt(distance / accel);
     } else {
-        const dCruise = distance - 2 * dAccel;
-        const tCruise = dCruise / velocity;
-        time = 2 * tAccel + tCruise;
+        distance = parseFloat(document.getElementById('scanRange').value) || 0;
     }
 
-    document.getElementById('estTime').textContent = time > 0 ? `~${time.toFixed(1)}s` : '--';
+    function estimateMotion(d) {
+        if (d <= 0) return 0;
+        const tAccel = velocity / accel;
+        const dAccel = 0.5 * accel * tAccel * tAccel;
+        if (2 * dAccel >= d) return 2 * Math.sqrt(d / accel);
+        const dCruise = d - 2 * dAccel;
+        return 2 * tAccel + dCruise / velocity;
+    }
+
+    let totalTime;
+    if (isRelative) {
+        // scan + return
+        totalTime = estimateMotion(distance) + estimateMotion(distance);
+    } else {
+        // prep (half) + scan (full) + return (half)
+        const half = distance / 2;
+        totalTime = estimateMotion(half) + estimateMotion(distance) + estimateMotion(half);
+    }
+
+    document.getElementById('estTime').textContent = totalTime > 0 ? `~${totalTime.toFixed(1)}s` : '--';
 }
 
-// Attach estimate update to relevant inputs
-['cfgVelocity', 'cfgAccel', 'scanStart', 'scanEnd', 'scanDistance'].forEach(id => {
+function updateHalfRange() {
+    const range = parseFloat(document.getElementById('scanRange').value) || 0;
+    document.getElementById('halfRange').textContent = (range / 2).toFixed(3);
+}
+
+['cfgVelocity', 'cfgAccel', 'scanDistance'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateEstimate);
 });
+document.getElementById('scanRange').addEventListener('input', () => {
+    updateHalfRange();
+    updateEstimate();
+});
 
-// --- Scan Control ---
+// ============================================================
+//  Scan Control (fully frontend-driven)
+// ============================================================
+let scanStartTime = 0;
+
 async function startScan() {
-    const mode = document.getElementById('modeAbsolute').checked ? 'absolute' : 'relative';
+    const isRelative = document.getElementById('modeRelative').checked;
+    const mode = isRelative ? 'relative' : 'center';
     const velocity = parseFloat(document.getElementById('cfgVelocity').value);
     const accel = parseFloat(document.getElementById('cfgAccel').value);
     const interval = parseInt(document.getElementById('scanInterval').value);
 
     const config = {
-        mode: mode,
+        mode,
         velocity_mm_s: velocity,
         acceleration_mm_s2: accel,
         sampling_interval_ms: interval,
     };
 
-    if (mode === 'absolute') {
-        config.start_mm = parseFloat(document.getElementById('scanStart').value);
-        config.end_mm = parseFloat(document.getElementById('scanEnd').value);
-    } else {
+    if (isRelative) {
         config.distance_mm = parseFloat(document.getElementById('scanDistance').value);
         config.direction = document.getElementById('dirForward').checked ? 'forward' : 'backward';
-    }
-
-    // Set velocity params first
-    try {
-        await api('PUT', '/kdc101/config/velocity', {
-            max_velocity_mm_s: velocity,
-            acceleration_mm_s2: accel,
-        });
-    } catch (e) {
-        log('Failed to set velocity: ' + e.message, 'error');
-        return;
+    } else {
+        config.distance_mm = parseFloat(document.getElementById('scanRange').value);
     }
 
     // Clear previous data
     scanData = [];
+    processedData = [];
     clearChart();
     document.getElementById('scanInfoPanel').style.display = 'none';
-    document.getElementById('btnExportAll').disabled = true;
-    document.getElementById('btnExportRange').disabled = true;
+    document.getElementById('btnExport').disabled = true;
+    document.getElementById('btnExportRaw').disabled = true;
+    document.getElementById('totalPoints').textContent = '0';
+    document.getElementById('interpPoints').textContent = '0';
+    document.getElementById('cropLeftVal').textContent = '--';
+    document.getElementById('cropRightVal').textContent = '--';
+
+    // Stop power display and position polling — scan takes over
+    scanningActive = true;
+    scanAbort = false;
+    stopPowerDisplay();
+    stopPositionPolling();
+
+    scanStartTime = Date.now();
+    updateScanState('preparing');
+    document.getElementById('btnStartScan').disabled = true;
+    document.getElementById('btnStopScan').disabled = false;
+    document.getElementById('progressBar').style.display = 'block';
 
     try {
-        const res = await api('POST', '/scan/start', config);
-        log(`Scan started (est. ${res.estimated_time_s.toFixed(1)}s)`, 'ok');
-        updateScanState('preparing');
-        document.getElementById('btnStartScan').disabled = true;
-        document.getElementById('btnStopScan').disabled = false;
-        document.getElementById('progressBar').style.display = 'block';
-        startScanSSE();
+        await runScanDirect(config);
     } catch (e) {
-        log('Start scan error: ' + e.message, 'error');
+        log('Scan error: ' + e.message, 'error');
+        updateScanState('error');
+        document.getElementById('btnStartScan').disabled = false;
+        document.getElementById('btnStopScan').disabled = true;
+        document.getElementById('progressBar').style.display = 'none';
+        updateScanButton();
     }
+
+    scanningActive = false;
+    startPowerDisplay();
+    startPositionPolling();
 }
 
 async function stopScan() {
-    try {
-        await api('POST', '/scan/stop');
-        log('Scan stop requested', 'ok');
-    } catch (e) { log('Stop scan error: ' + e.message, 'error'); }
+    scanAbort = true;
+    try { await kdc.stop(); } catch (e) {}
+    log('Scan stop requested', 'ok');
 }
 
-function startScanSSE() {
-    stopScanSSE();
-    sseSource = new EventSource(API + '/scan/stream');
+async function runScanDirect(config) {
+    // Set velocity params
+    await kdc.setVelocityParams(config.velocity_mm_s, config.acceleration_mm_s2);
+    await sleep(100);
 
-    sseSource.addEventListener('scan_point', (e) => {
-        const p = JSON.parse(e.data);
-        scanData.push(p);
-        addChartPoint(p.position_mm, p.power);
-    });
+    // Record original position
+    let st = await kdc.getStatus();
+    const originalPosition = st.position_mm;
+    const current = originalPosition;
 
-    sseSource.addEventListener('scan_status', (e) => {
-        const s = JSON.parse(e.data);
-        updateScanState(s.state);
-        document.getElementById('totalPoints').textContent = s.points_collected;
+    // Determine start and end positions
+    let startMm, endMm;
+    if (config.mode === 'center') {
+        const half = config.distance_mm / 2;
+        startMm = current - half;
+        endMm = current + half;
+    } else {
+        startMm = current;
+        let dist = config.distance_mm;
+        if (config.direction === 'backward') dist = -dist;
+        endMm = current + dist;
+    }
 
-        if (s.progress_percent != null) {
-            document.getElementById('progressFill').style.width = s.progress_percent + '%';
+    // For center mode, move to start position first
+    if (config.mode === 'center') {
+        log(`Moving to start position: ${startMm.toFixed(3)} mm`);
+        await kdc.moveAbsolute(startMm);
+        if (!(await waitForStop(60))) return;
+    }
+
+    if (scanAbort) {
+        updateScanState('idle');
+        document.getElementById('btnStartScan').disabled = false;
+        document.getElementById('btnStopScan').disabled = true;
+        document.getElementById('progressBar').style.display = 'none';
+        updateScanButton();
+        return;
+    }
+
+    // Start scanning
+    updateScanState('scanning');
+    const totalDist = Math.abs(endMm - startMm);
+    log(`Scanning to ${endMm.toFixed(3)} mm`);
+    await kdc.moveAbsolute(endMm);
+
+    const intervalMs = config.sampling_interval_ms;
+
+    // Phase 1: Wait for motion to start, collecting data
+    let motionStarted = false;
+    const maxWaitIters = Math.max(20, Math.round(2000 / intervalMs));
+    for (let i = 0; i < maxWaitIters && !scanAbort; i++) {
+        const t0 = performance.now();
+        try {
+            st = await kdc.getStatus();
+            const power = await withUSB(() => pm.readPower());
+            addScanPoint(st.position_mm, power, startMm, totalDist);
+            if (st.is_moving) { motionStarted = true; break; }
+        } catch (e) {}
+        const elapsed = performance.now() - t0;
+        await sleep(Math.max(0, intervalMs - elapsed));
+    }
+
+    if (!motionStarted && !scanAbort) {
+        log('Motion start not detected, proceeding anyway');
+    }
+
+    // Phase 2: Collect data until motion stops
+    while (!scanAbort) {
+        const t0 = performance.now();
+        try {
+            st = await kdc.getStatus();
+            const power = await withUSB(() => pm.readPower());
+            addScanPoint(st.position_mm, power, startMm, totalDist);
+            if (!st.is_moving) {
+                await sleep(intervalMs * 2);
+                break;
+            }
+        } catch (e) {}
+        const elapsed = performance.now() - t0;
+        await sleep(Math.max(0, intervalMs - elapsed));
+    }
+
+    document.getElementById('progressFill').style.width = '100%';
+
+    // Stop motion and drain rx buffer before returning
+    try { await kdc.stop(); } catch (e) {}
+    await sleep(200);
+    kdc.port._rxBuffer = new Uint8Array(0);
+
+    // Return to original position
+    if (!scanAbort) {
+        updateScanState('returning');
+        log(`Returning to ${originalPosition.toFixed(3)} mm`);
+        await kdc.moveAbsolute(originalPosition);
+        await sleep(300);
+        const deadline = performance.now() + 60000;
+        while (performance.now() < deadline) {
+            if (scanAbort) break;
+            try {
+                st = await kdc.getStatus();
+                document.getElementById('stagePosition').textContent = st.position_mm.toFixed(3);
+                if (!st.is_moving) break;
+            } catch (e) { break; }
+            await sleep(100);
         }
+    }
 
-        if (s.state === 'complete') {
-            stopScanSSE();
-            onScanComplete();
-        } else if (s.state === 'error') {
-            stopScanSSE();
-            log('Scan error: ' + (s.error_message || 'unknown'), 'error');
-            document.getElementById('btnStartScan').disabled = false;
-            document.getElementById('btnStopScan').disabled = true;
-            document.getElementById('progressBar').style.display = 'none';
-        } else if (s.state === 'idle') {
-            stopScanSSE();
-            document.getElementById('btnStartScan').disabled = false;
-            document.getElementById('btnStopScan').disabled = true;
-            document.getElementById('progressBar').style.display = 'none';
-        }
-    });
+    updateScanState('complete');
+    onScanComplete();
+}
 
-    sseSource.onerror = () => {
-        log('SSE connection error', 'error');
-        stopScanSSE();
+function addScanPoint(positionMm, power, startMm, totalDist) {
+    const point = {
+        timestamp: Date.now() / 1000,
+        position_mm: positionMm,
+        power: power,
+        power_unit: cachedUnit,
     };
-}
-
-function stopScanSSE() {
-    if (sseSource) {
-        sseSource.close();
-        sseSource = null;
+    scanData.push(point);
+    addChartPoint(positionMm, power);
+    updatePowerDisplay(power, cachedUnit);
+    document.getElementById('stagePosition').textContent = positionMm.toFixed(3);
+    document.getElementById('totalPoints').textContent = scanData.length;
+    if (totalDist > 0) {
+        const done = Math.abs(positionMm - startMm);
+        const pct = Math.min(100, (done / totalDist) * 100);
+        document.getElementById('progressFill').style.width = pct + '%';
     }
 }
 
+async function waitForStop(timeoutS = 60) {
+    await sleep(300);
+    const deadline = performance.now() + timeoutS * 1000;
+    while (performance.now() < deadline) {
+        if (scanAbort) return false;
+        try {
+            const st = await kdc.getStatus();
+            document.getElementById('stagePosition').textContent = st.position_mm.toFixed(3);
+            if (!st.is_moving) return true;
+        } catch (e) {}
+        await sleep(100);
+    }
+    throw new Error('Timeout waiting for stage to stop');
+}
+
+// ============================================================
+//  Scan State & Completion
+// ============================================================
 function updateScanState(state) {
     const badge = document.getElementById('scanBadge');
     badge.textContent = state.toUpperCase();
     badge.className = 'scan-state-badge badge-' + state;
 }
 
-async function onScanComplete() {
-    log('Scan complete!', 'ok');
+function onScanComplete() {
+    const duration = (Date.now() - scanStartTime) / 1000;
+    log(`Scan complete! ${scanData.length} points in ${duration.toFixed(1)}s`, 'ok');
     document.getElementById('btnStartScan').disabled = false;
     document.getElementById('btnStopScan').disabled = true;
     document.getElementById('progressBar').style.display = 'none';
     document.getElementById('progressFill').style.width = '100%';
 
     // Enable export
-    document.getElementById('btnExportAll').disabled = false;
-    document.getElementById('btnExportRange').disabled = false;
+    document.getElementById('btnExport').disabled = false;
+    document.getElementById('btnExportRaw').disabled = false;
 
-    // Update range slider bounds
+    // Set crop lines to data boundaries
     if (scanData.length > 0) {
         const positions = scanData.map(p => p.position_mm);
         scanDataMin = Math.min(...positions);
         scanDataMax = Math.max(...positions);
-        const rangeMin = document.getElementById('rangeMin');
-        const rangeMax = document.getElementById('rangeMax');
-        rangeMin.min = scanDataMin;
-        rangeMin.max = scanDataMax;
-        rangeMin.value = scanDataMin;
-        rangeMin.step = (scanDataMax - scanDataMin) / 1000;
-        rangeMax.min = scanDataMin;
-        rangeMax.max = scanDataMax;
-        rangeMax.value = scanDataMax;
-        rangeMax.step = (scanDataMax - scanDataMin) / 1000;
-        onRangeChange();
+        cropLeft = scanDataMin;
+        cropRight = scanDataMax;
+        cropLinesVisible = true;
+        updateCropInfo();
+        computeProcessedData();
+        chart.update('none');
     }
 
     // Show scan info
-    try {
-        const result = await api('GET', '/scan/result');
-        document.getElementById('scanInfoPanel').style.display = 'block';
-        document.getElementById('resStart').textContent = result.actual_start_mm.toFixed(3) + ' mm';
-        document.getElementById('resEnd').textContent = result.actual_end_mm.toFixed(3) + ' mm';
-        document.getElementById('resDuration').textContent = (result.end_time - result.start_time).toFixed(1) + ' s';
-        document.getElementById('resPoints').textContent = result.points.length;
-    } catch (e) { log('Result fetch error: ' + e.message, 'error'); }
+    document.getElementById('scanInfoPanel').style.display = 'block';
+    document.getElementById('resDuration').textContent = duration.toFixed(1) + ' s';
+    document.getElementById('resPoints').textContent = scanData.length;
+    if (scanData.length > 0) {
+        const positions = scanData.map(p => p.position_mm);
+        document.getElementById('resPosRange').textContent =
+            Math.min(...positions).toFixed(3) + ' - ' + Math.max(...positions).toFixed(3) + ' mm';
+    }
 
-    // Refresh position
-    await refreshStagePosition();
     updateScanButton();
 }
 
-// --- Range Slider ---
-function onRangeChange() {
-    let lo = parseFloat(document.getElementById('rangeMin').value);
-    let hi = parseFloat(document.getElementById('rangeMax').value);
-    if (lo > hi) {
-        [lo, hi] = [hi, lo];
-    }
-    document.getElementById('rangeMinVal').textContent = lo.toFixed(3) + ' mm';
-    document.getElementById('rangeMaxVal').textContent = hi.toFixed(3) + ' mm';
-
-    // Count points in range
-    const count = scanData.filter(p => p.position_mm >= lo && p.position_mm <= hi).length;
-    document.getElementById('rangePoints').textContent = count;
-}
-
-// --- CSV Export ---
-function exportCSV(rangeOnly) {
-    let startMm = null, endMm = null;
-    if (rangeOnly) {
-        startMm = parseFloat(document.getElementById('rangeMin').value);
-        endMm = parseFloat(document.getElementById('rangeMax').value);
-        if (startMm > endMm) [startMm, endMm] = [endMm, startMm];
+// ============================================================
+//  CSV Export (client-side)
+// ============================================================
+function exportCSV() {
+    if (processedData.length === 0) {
+        log('No processed data to export', 'error');
+        return;
     }
 
-    let url = API + '/scan/export';
-    if (startMm != null && endMm != null) {
-        url += `?start_mm=${startMm}&end_mm=${endMm}`;
+    let csv = 'position_mm,power,power_unit\n';
+    for (const p of processedData) {
+        csv += `${p.uniformX.toFixed(6)},${p.power},${cachedUnit}\n`;
     }
 
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = rangeOnly ? 'scan_data_range.csv' : 'scan_data.csv';
+    a.download = 'scan_data.csv';
     a.click();
+    URL.revokeObjectURL(url);
+    log(`Exported ${processedData.length} interpolated points to CSV`, 'ok');
 }
 
-// --- Init ---
+function exportRawCSV() {
+    if (scanData.length === 0) {
+        log('No data to export', 'error');
+        return;
+    }
+
+    let csv = 'timestamp,position_mm,power,power_unit\n';
+    for (const p of scanData) {
+        csv += `${p.timestamp},${p.position_mm},${p.power},${p.power_unit}\n`;
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'scan_data_raw.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    log(`Exported ${scanData.length} raw points to CSV`, 'ok');
+}
+
+// ============================================================
+//  Init
+// ============================================================
 window.addEventListener('load', async () => {
     log('Coordinated Scan GUI loaded');
     updateEstimate();
+    updateHalfRange();
 
-    // Check device statuses
-    try {
-        const pmSt = await api('GET', '/pm100d/device/status');
-        updatePMUI(pmSt.connected);
-        if (pmSt.connected) await refreshPMConfig();
-    } catch (e) {}
+    // Check WebUSB support
+    if (!navigator.usb) {
+        log('WebUSB not supported. Use Chrome or Edge.', 'error');
+        document.getElementById('btnPmConnect').disabled = true;
+        document.getElementById('btnKdcConnect').disabled = true;
+        document.getElementById('webusbNotice').innerHTML =
+            '<strong style="color:#f87171;">WebUSB not supported!</strong> Use Chrome or Edge.';
+        document.getElementById('kdcWebusbNotice').innerHTML =
+            '<strong style="color:#f87171;">WebUSB not supported!</strong> Use Chrome or Edge.';
+    } else {
+        // Try to auto-reconnect PM100D
+        try {
+            const ok = await pm.reconnect();
+            if (ok) {
+                pmConnected = true;
+                log('PM100D auto-reconnected', 'ok');
+                updatePMUI(true);
+                await loadPMInfo();
+                await refreshPMConfig();
+                startPowerDisplay();
+            }
+        } catch (e) { /* no previously paired device */ }
 
-    try {
-        const kdcSt = await api('GET', '/kdc101/device/status');
-        updateKDCUI(kdcSt.connected);
-        if (kdcSt.connected) await refreshStagePosition();
-    } catch (e) {}
+        // Try to auto-reconnect KDC101
+        try {
+            const ok = await kdc.reconnect();
+            if (ok) {
+                kdcConnected = true;
+                log('KDC101 auto-reconnected', 'ok');
+                updateKDCUI(true);
+                await loadKDCInfo();
+                startPositionPolling();
+            }
+        } catch (e) { /* no previously paired device */ }
+    }
+});
+
+// Listen for USB disconnect
+navigator.usb?.addEventListener('disconnect', (e) => {
+    if (pm.tmc.device === e.device) {
+        stopPowerDisplay();
+        pm.connected = false;
+        pm.tmc.device = null;
+        pmConnected = false;
+        updatePMUI(false);
+        log('PM100D USB disconnected', 'error');
+    }
+    if (kdc.port.device === e.device) {
+        stopPositionPolling();
+        kdc.connected = false;
+        kdc.port.device = null;
+        kdcConnected = false;
+        updateKDCUI(false);
+        log('KDC101 USB disconnected', 'error');
+    }
 });
 </script>
 </body>

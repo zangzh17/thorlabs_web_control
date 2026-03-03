@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PM100D Power Meter</title>
+    <title>PM100D Power Meter (WebUSB)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,6 +18,7 @@
             border-bottom: 1px solid #2a2d3a;
         }
         .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+        .header h1 span { font-size: 12px; color: #666; font-weight: 400; margin-left: 8px; }
         .status-dot {
             width: 10px; height: 10px; border-radius: 50%;
             display: inline-block; margin-right: 8px;
@@ -124,12 +125,23 @@
         }
         .log-box .log-error { color: #ef4444; }
         .log-box .log-ok { color: #22c55e; }
+
+        .notice {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .notice strong { color: #e2e8f0; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>PM100D Power Meter</h1>
+    <h1>PM100D Power Meter<span>WebUSB</span></h1>
     <div id="statusBar">
         <span class="status-dot off" id="statusDot"></span>
         <span id="statusText">Disconnected</span>
@@ -141,13 +153,13 @@
         <!-- Device Panel -->
         <div class="panel">
             <h3>Device</h3>
-            <div class="field">
-                <label>VISA Resource</label>
-                <select id="deviceSelect"><option value="">-- Scan first --</option></select>
+            <div class="notice" id="driverNotice">
+                <strong>Windows:</strong> WebUSB requires WinUSB driver.<br>
+                Use <a href="https://zadig.akeo.ie/" target="_blank" style="color:#60a5fa;">Zadig</a>
+                to replace the Thorlabs driver with WinUSB.
             </div>
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="scanDevices()">Scan</button>
-                <button class="btn btn-success" id="btnConnect" onclick="connectDevice()">Connect</button>
+                <button class="btn btn-success" id="btnConnect" onclick="connectDevice()">Connect USB</button>
                 <button class="btn btn-danger" id="btnDisconnect" onclick="disconnectDevice()" disabled>Disconnect</button>
             </div>
             <div id="deviceInfo" style="margin-top: 12px; display: none;">
@@ -251,12 +263,210 @@
 </div>
 
 <script>
-const API = '';
-let sseSource = null;
-let chartData = { labels: [], data: [] };
+// ============================================================
+//  USBTMC over WebUSB
+// ============================================================
+class USBTMC {
+    constructor() {
+        this.device = null;
+        this.interfaceNumber = -1;
+        this.endpointIn = -1;
+        this.endpointOut = -1;
+        this._bTag = 0;
+    }
+
+    _nextTag() {
+        this._bTag = (this._bTag % 255) + 1;
+        return this._bTag;
+    }
+
+    async open(device) {
+        this.device = device;
+        await device.open();
+
+        if (device.configuration === null) {
+            await device.selectConfiguration(1);
+        }
+
+        // Find USBTMC interface (class 0xFE, subclass 0x03)
+        for (const iface of device.configuration.interfaces) {
+            for (const alt of iface.alternates) {
+                if (alt.interfaceClass === 0xFE && alt.interfaceSubclass === 0x03) {
+                    this.interfaceNumber = iface.interfaceNumber;
+                    for (const ep of alt.endpoints) {
+                        if (ep.type === 'bulk' && ep.direction === 'out')
+                            this.endpointOut = ep.endpointNumber;
+                        else if (ep.type === 'bulk' && ep.direction === 'in')
+                            this.endpointIn = ep.endpointNumber;
+                    }
+                }
+            }
+        }
+
+        if (this.interfaceNumber === -1)
+            throw new Error('No USBTMC interface found on this device');
+
+        await device.claimInterface(this.interfaceNumber);
+    }
+
+    async write(command) {
+        const tag = this._nextTag();
+        const payload = new TextEncoder().encode(command + '\n');
+        const size = payload.length;
+        const padding = (4 - (size % 4)) % 4;
+
+        const buf = new ArrayBuffer(12 + size + padding);
+        const view = new DataView(buf);
+        const arr = new Uint8Array(buf);
+
+        view.setUint8(0, 1);                // MsgID: DEV_DEP_MSG_OUT
+        view.setUint8(1, tag);
+        view.setUint8(2, ~tag & 0xFF);
+        view.setUint32(4, size, true);       // TransferSize (LE)
+        view.setUint8(8, 0x01);              // bmTransferAttributes: EOM
+        arr.set(payload, 12);
+
+        await this.device.transferOut(this.endpointOut, buf);
+    }
+
+    async read(maxLen = 4096) {
+        const tag = this._nextTag();
+
+        // Send REQUEST_DEV_DEP_MSG_IN
+        const req = new ArrayBuffer(12);
+        const rv = new DataView(req);
+        rv.setUint8(0, 2);                  // MsgID: REQUEST_DEV_DEP_MSG_IN
+        rv.setUint8(1, tag);
+        rv.setUint8(2, ~tag & 0xFF);
+        rv.setUint32(4, maxLen, true);
+
+        await this.device.transferOut(this.endpointOut, req);
+
+        // Read DEV_DEP_MSG_IN from Bulk-IN
+        const result = await this.device.transferIn(this.endpointIn, maxLen + 16);
+        if (result.status !== 'ok')
+            throw new Error('USB transferIn failed: ' + result.status);
+
+        const dv = new DataView(result.data.buffer);
+        const transferSize = dv.getUint32(4, true);
+
+        // Collect data: first packet has 12-byte header
+        let received = Math.min(result.data.byteLength - 12, transferSize);
+        const output = new Uint8Array(transferSize);
+        output.set(new Uint8Array(result.data.buffer, 12, received));
+
+        // Read continuation packets if needed
+        while (received < transferSize) {
+            const extra = await this.device.transferIn(this.endpointIn, maxLen);
+            if (extra.status !== 'ok') break;
+            const chunk = new Uint8Array(extra.data.buffer);
+            const n = Math.min(chunk.length, transferSize - received);
+            output.set(chunk.subarray(0, n), received);
+            received += n;
+        }
+
+        return new TextDecoder().decode(output).trim();
+    }
+
+    async query(command) {
+        await this.write(command);
+        return await this.read();
+    }
+
+    async close() {
+        if (!this.device) return;
+        try { await this.device.releaseInterface(this.interfaceNumber); } catch {}
+        try { await this.device.close(); } catch {}
+        this.device = null;
+        this.interfaceNumber = -1;
+    }
+}
+
+// ============================================================
+//  PM100D high-level driver
+// ============================================================
+class PM100DDriver {
+    constructor() {
+        this.tmc = new USBTMC();
+        this.connected = false;
+    }
+
+    async connect() {
+        const device = await navigator.usb.requestDevice({
+            filters: [
+                { vendorId: 0x1313, productId: 0x8078 },
+                { classCode: 0xFE, subclassCode: 0x03 },
+            ]
+        });
+        await this.tmc.open(device);
+        this.connected = true;
+    }
+
+    async reconnect() {
+        const devices = await navigator.usb.getDevices();
+        const dev = devices.find(d => d.vendorId === 0x1313 && d.productId === 0x8078);
+        if (dev) {
+            await this.tmc.open(dev);
+            this.connected = true;
+            return true;
+        }
+        return false;
+    }
+
+    async disconnect() {
+        await this.tmc.close();
+        this.connected = false;
+    }
+
+    // --- Info ---
+    async idn()            { return this.tmc.query('*IDN?'); }
+    async sensorInfo()     { return this.tmc.query('SYST:SENS:IDN?'); }
+    async wavelengthRange() {
+        const min = parseFloat(await this.tmc.query('SENS:CORR:WAV? MIN'));
+        const max = parseFloat(await this.tmc.query('SENS:CORR:WAV? MAX'));
+        return [min, max];
+    }
+    async powerRangeLimits() {
+        const min = parseFloat(await this.tmc.query('SENS:POW:DC:RANG:UPP? MIN'));
+        const max = parseFloat(await this.tmc.query('SENS:POW:DC:RANG:UPP? MAX'));
+        return [min, max];
+    }
+
+    // --- Measurement ---
+    async readPower()      { return parseFloat(await this.tmc.query('MEAS:SCAL:POW?')); }
+
+    // --- Config get ---
+    async getWavelength()  { return parseFloat(await this.tmc.query('SENS:CORR:WAV?')); }
+    async getPowerRange()  { return parseFloat(await this.tmc.query('SENS:POW:DC:RANG:UPP?')); }
+    async getAutoRange()   { return parseInt(await this.tmc.query('SENS:POW:DC:RANG:AUTO?')) === 1; }
+    async getAveraging()   { return parseInt(await this.tmc.query('SENS:AVER:COUN?')); }
+    async getPowerUnit()   { return (await this.tmc.query('SENS:POW:DC:UNIT?')).replace(/"/g, ''); }
+    async getBeamDiameter(){ return parseFloat(await this.tmc.query('SENS:CORR:BEAM?')); }
+
+    // --- Config set ---
+    async setWavelength(nm)      { await this.tmc.write(`SENS:CORR:WAV ${nm}`); }
+    async setPowerRange(w)       { await this.tmc.write(`SENS:POW:DC:RANG:UPP ${w}`); }
+    async setAutoRange(on)       { await this.tmc.write(`SENS:POW:DC:RANG:AUTO ${on ? 1 : 0}`); }
+    async setAveraging(count)    { await this.tmc.write(`SENS:AVER:COUN ${count}`); }
+    async setPowerUnit(unit)     { await this.tmc.write(`SENS:POW:DC:UNIT ${unit.toUpperCase()}`); }
+
+    // --- Calibration ---
+    async zeroStart()      { await this.tmc.write('SENS:CORR:COLL:ZERO:INIT'); }
+    async zeroState()      { return parseInt(await this.tmc.query('SENS:CORR:COLL:ZERO:STAT?')) === 1; }
+}
+
+// ============================================================
+//  Globals
+// ============================================================
+const pm = new PM100DDriver();
+let acquiring = false;
+let acqTimer = null;
+let cachedUnit = 'W';
 const MAX_POINTS = 500;
 
-// --- Chart ---
+// ============================================================
+//  Chart
+// ============================================================
 const ctx = document.getElementById('powerChart').getContext('2d');
 const chart = new Chart(ctx, {
     type: 'line',
@@ -290,14 +500,12 @@ const chart = new Chart(ctx, {
                 title: { display: true, text: 'Power', color: '#555', font: { size: 11 } },
             }
         },
-        plugins: {
-            legend: { display: false },
-        }
+        plugins: { legend: { display: false } }
     }
 });
 
-function addChartPoint(timestamp, power) {
-    const t = new Date(timestamp * 1000);
+function addChartPoint(power) {
+    const t = new Date();
     const label = t.toLocaleTimeString('en', { hour12: false }) + '.' + String(t.getMilliseconds()).padStart(3, '0');
     chart.data.labels.push(label);
     chart.data.datasets[0].data.push(power);
@@ -315,7 +523,9 @@ function clearChart() {
     log('Chart cleared');
 }
 
-// --- Logging ---
+// ============================================================
+//  Logging
+// ============================================================
 function log(msg, type = '') {
     const box = document.getElementById('logBox');
     const cls = type === 'error' ? 'log-error' : type === 'ok' ? 'log-ok' : '';
@@ -324,58 +534,61 @@ function log(msg, type = '') {
     box.scrollTop = box.scrollHeight;
 }
 
-// --- API helpers ---
-async function api(method, path, body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(API + path, opts);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-    return data;
+// ============================================================
+//  Power formatting
+// ============================================================
+function formatPower(p) {
+    const abs = Math.abs(p);
+    if (abs === 0) return '0.000';
+    if (abs < 1e-9) return (p * 1e12).toFixed(3) + ' pW';
+    if (abs < 1e-6) return (p * 1e9).toFixed(3) + ' nW';
+    if (abs < 1e-3) return (p * 1e6).toFixed(3) + ' uW';
+    if (abs < 1)    return (p * 1e3).toFixed(3) + ' mW';
+    return p.toFixed(6) + ' W';
 }
 
-// --- Device ---
-async function scanDevices() {
-    try {
-        const devices = await api('GET', '/device/list');
-        const sel = document.getElementById('deviceSelect');
-        sel.innerHTML = '';
-        if (devices.length === 0) {
-            sel.innerHTML = '<option value="">No devices found</option>';
-            log('Scan: no devices found', 'error');
-        } else {
-            devices.forEach(d => {
-                sel.innerHTML += `<option value="${d}">${d}</option>`;
-            });
-            log(`Scan: found ${devices.length} device(s)`, 'ok');
-        }
-    } catch (e) { log('Scan error: ' + e.message, 'error'); }
+function updatePowerDisplay(power, unit) {
+    const el  = document.getElementById('powerValue');
+    const uel = document.getElementById('powerUnit');
+    if (unit.toUpperCase() === 'DBM') {
+        el.textContent  = power.toFixed(3);
+        uel.textContent = 'dBm';
+    } else {
+        el.textContent  = formatPower(power).replace(/ [a-zA-Z]+$/, '');
+        const suffix = formatPower(power).match(/ [a-zA-Z]+$/);
+        uel.textContent = suffix ? suffix[0].trim() : 'W';
+    }
 }
 
+// ============================================================
+//  Device connect / disconnect
+// ============================================================
 async function connectDevice() {
-    const resource = document.getElementById('deviceSelect').value;
-    if (!resource) { log('No device selected', 'error'); return; }
     try {
-        await api('POST', '/device/connect', { visa_resource: resource });
-        log('Connected to ' + resource, 'ok');
+        await pm.connect();
+        log('Connected via WebUSB', 'ok');
         updateConnectionUI(true);
         await loadDeviceInfo();
         await refreshConfig();
-    } catch (e) { log('Connect error: ' + e.message, 'error'); }
+    } catch (e) {
+        log('Connect error: ' + e.message, 'error');
+    }
 }
 
 async function disconnectDevice() {
+    stopAcquisition();
     try {
-        stopSSE();
-        await api('POST', '/device/disconnect');
+        await pm.disconnect();
         log('Disconnected', 'ok');
         updateConnectionUI(false);
-    } catch (e) { log('Disconnect error: ' + e.message, 'error'); }
+    } catch (e) {
+        log('Disconnect error: ' + e.message, 'error');
+    }
 }
 
 function updateConnectionUI(connected) {
     document.getElementById('statusDot').className = 'status-dot ' + (connected ? 'on' : 'off');
-    document.getElementById('statusText').textContent = connected ? 'Connected' : 'Disconnected';
+    document.getElementById('statusText').textContent = connected ? 'Connected (WebUSB)' : 'Disconnected';
     document.getElementById('btnConnect').disabled = connected;
     document.getElementById('btnDisconnect').disabled = !connected;
     document.getElementById('deviceInfo').style.display = connected ? 'block' : 'none';
@@ -383,23 +596,33 @@ function updateConnectionUI(connected) {
 
 async function loadDeviceInfo() {
     try {
-        const info = await api('GET', '/device/info');
-        document.getElementById('infoIdn').textContent = info.idn;
-        document.getElementById('infoSensor').textContent = info.sensor_info;
-        document.getElementById('infoWlRange').textContent = `${info.wavelength_range[0]} - ${info.wavelength_range[1]} nm`;
-        document.getElementById('infoPwrRange').textContent = `${info.power_range_limits[0].toExponential(2)} - ${info.power_range_limits[1].toExponential(2)} W`;
+        const idn = await pm.idn();
+        const sensor = await pm.sensorInfo();
+        const wlRange = await pm.wavelengthRange();
+        const pwrRange = await pm.powerRangeLimits();
+        document.getElementById('infoIdn').textContent = idn;
+        document.getElementById('infoSensor').textContent = sensor;
+        document.getElementById('infoWlRange').textContent = `${wlRange[0]} - ${wlRange[1]} nm`;
+        document.getElementById('infoPwrRange').textContent = `${pwrRange[0].toExponential(2)} - ${pwrRange[1].toExponential(2)} W`;
     } catch (e) { log('Info error: ' + e.message, 'error'); }
 }
 
-// --- Config ---
+// ============================================================
+//  Configuration
+// ============================================================
 async function refreshConfig() {
     try {
-        const cfg = await api('GET', '/config');
-        document.getElementById('cfgWavelength').value = cfg.wavelength;
-        document.getElementById('cfgAveraging').value = cfg.averaging;
-        document.getElementById('cfgUnit').value = cfg.power_unit.replace(/"/g, '');
-        document.getElementById('cfgRange').value = cfg.power_range;
-        document.getElementById('cfgAutoRange').checked = cfg.auto_range;
+        const wl   = await pm.getWavelength();
+        const avg  = await pm.getAveraging();
+        const unit = await pm.getPowerUnit();
+        const rng  = await pm.getPowerRange();
+        const auto = await pm.getAutoRange();
+        cachedUnit = unit;
+        document.getElementById('cfgWavelength').value = wl;
+        document.getElementById('cfgAveraging').value  = avg;
+        document.getElementById('cfgUnit').value        = unit;
+        document.getElementById('cfgRange').value       = rng;
+        document.getElementById('cfgAutoRange').checked = auto;
         log('Config refreshed', 'ok');
     } catch (e) { log('Config error: ' + e.message, 'error'); }
 }
@@ -407,47 +630,50 @@ async function refreshConfig() {
 async function setWavelength() {
     try {
         const v = parseFloat(document.getElementById('cfgWavelength').value);
-        const r = await api('PUT', '/config/wavelength', { wavelength_nm: v });
-        log(`Wavelength set to ${r.wavelength_nm} nm`, 'ok');
+        await pm.setWavelength(v);
+        log(`Wavelength set to ${v} nm`, 'ok');
     } catch (e) { log('Set wavelength error: ' + e.message, 'error'); }
 }
 
 async function setAveraging() {
     try {
         const v = parseInt(document.getElementById('cfgAveraging').value);
-        const r = await api('PUT', '/config/averaging', { count: v });
-        log(`Averaging set to ${r.averaging}`, 'ok');
+        await pm.setAveraging(v);
+        log(`Averaging set to ${v}`, 'ok');
     } catch (e) { log('Set averaging error: ' + e.message, 'error'); }
 }
 
 async function setUnit() {
     try {
         const v = document.getElementById('cfgUnit').value;
-        const r = await api('PUT', '/config/unit', { unit: v });
-        log(`Unit set to ${r.power_unit}`, 'ok');
+        await pm.setPowerUnit(v);
+        cachedUnit = v;
+        log(`Unit set to ${v}`, 'ok');
     } catch (e) { log('Set unit error: ' + e.message, 'error'); }
 }
 
 async function setRange() {
     try {
         const v = parseFloat(document.getElementById('cfgRange').value);
-        const r = await api('PUT', '/config/range', { power_range_w: v });
-        log(`Range set to ${r.power_range}`, 'ok');
+        await pm.setPowerRange(v);
+        log(`Range set to ${v}`, 'ok');
     } catch (e) { log('Set range error: ' + e.message, 'error'); }
 }
 
 async function setAutoRange() {
     try {
         const v = document.getElementById('cfgAutoRange').checked;
-        const r = await api('PUT', '/config/range', { auto_range: v });
-        log(`Auto range: ${r.auto_range}`, 'ok');
+        await pm.setAutoRange(v);
+        log(`Auto range: ${v}`, 'ok');
     } catch (e) { log('Set auto range error: ' + e.message, 'error'); }
 }
 
-// --- Calibration ---
+// ============================================================
+//  Calibration
+// ============================================================
 async function startZero() {
     try {
-        await api('POST', '/calibration/zero');
+        await pm.zeroStart();
         log('Zero calibration started', 'ok');
         document.getElementById('zeroStatus').textContent = 'Zeroing...';
     } catch (e) { log('Zero error: ' + e.message, 'error'); }
@@ -455,98 +681,91 @@ async function startZero() {
 
 async function checkZeroStatus() {
     try {
-        const r = await api('GET', '/calibration/status');
-        const msg = r.zeroing ? 'Zeroing in progress...' : 'Zero complete';
+        const zeroing = await pm.zeroState();
+        const msg = zeroing ? 'Zeroing in progress...' : 'Zero complete';
         document.getElementById('zeroStatus').textContent = msg;
         log('Zero status: ' + msg);
     } catch (e) { log('Zero status error: ' + e.message, 'error'); }
 }
 
-// --- Measurement ---
+// ============================================================
+//  Measurement & Acquisition
+// ============================================================
 async function singleRead() {
     try {
-        const r = await api('GET', '/measurement/power');
-        updatePowerDisplay(r.power, r.unit);
-        addChartPoint(r.timestamp, r.power);
-        log(`Single read: ${formatPower(r.power)} ${r.unit}`);
+        const power = await pm.readPower();
+        updatePowerDisplay(power, cachedUnit);
+        addChartPoint(power);
+        log(`Single read: ${formatPower(power)}`);
     } catch (e) { log('Read error: ' + e.message, 'error'); }
 }
 
-async function startAcquisition() {
-    const interval = parseInt(document.getElementById('acqInterval').value);
+function startAcquisition() {
+    if (acquiring) return;
+    acquiring = true;
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('btnStop').disabled  = false;
+    const interval = parseInt(document.getElementById('acqInterval').value) || 100;
+    log(`Acquisition started (${interval} ms)`, 'ok');
+    acquisitionLoop(interval);
+}
+
+function stopAcquisition() {
+    if (!acquiring) return;
+    acquiring = false;
+    if (acqTimer) { clearTimeout(acqTimer); acqTimer = null; }
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnStop').disabled  = true;
+    log('Acquisition stopped', 'ok');
+}
+
+async function acquisitionLoop(interval) {
+    if (!acquiring) return;
+    const t0 = performance.now();
     try {
-        await api('POST', '/measurement/start', { interval_ms: interval });
-        log(`Acquisition started (${interval} ms)`, 'ok');
-        document.getElementById('btnStart').disabled = true;
-        document.getElementById('btnStop').disabled = false;
-        startSSE();
-    } catch (e) { log('Start error: ' + e.message, 'error'); }
-}
-
-async function stopAcquisition() {
-    try {
-        stopSSE();
-        await api('POST', '/measurement/stop');
-        log('Acquisition stopped', 'ok');
-        document.getElementById('btnStart').disabled = false;
-        document.getElementById('btnStop').disabled = true;
-    } catch (e) { log('Stop error: ' + e.message, 'error'); }
-}
-
-function startSSE() {
-    stopSSE();
-    sseSource = new EventSource(API + '/measurement/stream');
-    sseSource.addEventListener('power', (e) => {
-        const r = JSON.parse(e.data);
-        updatePowerDisplay(r.power, r.unit);
-        addChartPoint(r.timestamp, r.power);
-    });
-    sseSource.onerror = () => {
-        log('SSE connection error', 'error');
-    };
-}
-
-function stopSSE() {
-    if (sseSource) {
-        sseSource.close();
-        sseSource = null;
+        const power = await pm.readPower();
+        updatePowerDisplay(power, cachedUnit);
+        addChartPoint(power);
+    } catch (e) {
+        log('Acq read error: ' + e.message, 'error');
     }
+    if (!acquiring) return;
+    const elapsed = performance.now() - t0;
+    const delay = Math.max(0, interval - elapsed);
+    acqTimer = setTimeout(() => acquisitionLoop(interval), delay);
 }
 
-function formatPower(p) {
-    const abs = Math.abs(p);
-    if (abs === 0) return '0.000';
-    if (abs < 1e-9) return (p * 1e12).toFixed(3) + ' pW';
-    if (abs < 1e-6) return (p * 1e9).toFixed(3) + ' nW';
-    if (abs < 1e-3) return (p * 1e6).toFixed(3) + ' uW';
-    if (abs < 1) return (p * 1e3).toFixed(3) + ' mW';
-    return p.toFixed(6) + ' W';
-}
-
-function updatePowerDisplay(power, unit) {
-    const el = document.getElementById('powerValue');
-    const uel = document.getElementById('powerUnit');
-    if (unit.replace(/"/g, '').toUpperCase() === 'DBM') {
-        el.textContent = power.toFixed(3);
-        uel.textContent = 'dBm';
-    } else {
-        el.textContent = formatPower(power).replace(/ [a-zA-Z]+$/, '');
-        const suffix = formatPower(power).match(/ [a-zA-Z]+$/);
-        uel.textContent = suffix ? suffix[0].trim() : 'W';
-    }
-}
-
-// --- Init ---
+// ============================================================
+//  Init
+// ============================================================
 window.addEventListener('load', async () => {
-    log('PM100D Web GUI loaded');
+    if (!navigator.usb) {
+        log('WebUSB not supported. Use Chrome or Edge.', 'error');
+        document.getElementById('btnConnect').disabled = true;
+        return;
+    }
+    log('PM100D WebUSB GUI loaded');
+
+    // Try to reconnect to a previously paired device
     try {
-        const st = await api('GET', '/device/status');
-        updateConnectionUI(st.connected);
-        if (st.connected) {
+        const ok = await pm.reconnect();
+        if (ok) {
+            log('Auto-reconnected to PM100D', 'ok');
+            updateConnectionUI(true);
             await loadDeviceInfo();
             await refreshConfig();
         }
-    } catch (e) { log('Init error: ' + e.message, 'error'); }
+    } catch (e) { /* no previously paired device */ }
+});
+
+navigator.usb?.addEventListener('disconnect', (e) => {
+    if (pm.tmc.device === e.device) {
+        stopAcquisition();
+        pm.connected = false;
+        pm.tmc.device = null;
+        updateConnectionUI(false);
+        log('USB device disconnected', 'error');
+    }
 });
 </script>
 </body>
