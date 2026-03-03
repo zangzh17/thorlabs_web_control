@@ -9,6 +9,8 @@ Currently supported devices:
 | **PM100D** | Optical Power Meter | PyVISA / SCPI over USB |
 | **KDC101** | K-Cube DC Servo Motor Controller | FTDI D2XX / APT binary protocol |
 
+Additionally, a **Coordinated Scan** module combines both devices to perform automated spatial power scanning — moving the stage while recording power readings.
+
 ## Architecture
 
 Both drivers follow a three-layer design:
@@ -48,6 +50,15 @@ thorlabs/
 │       ├── index.html          # Web UI (REST API mode)
 │       └── webserial.html      # Web UI (WebSerial direct mode)
 │
+├── scan/                       # Coordinated Scan (PM100D + KDC101)
+│   ├── service.py              # Scan coordinator (orchestrates both devices)
+│   ├── api.py                  # FastAPI endpoints + SSE scan stream + CSV export
+│   ├── schemas.py              # Pydantic models (ScanConfig, ScanPoint, ScanResult)
+│   ├── config.py               # Configuration
+│   ├── main.py                 # Entry point (port 8082)
+│   └── static/
+│       └── index.html          # Unified scan UI
+│
 ├── pyproject.toml              # Dependencies (managed by uv)
 └── uv.lock
 ```
@@ -77,11 +88,15 @@ uv run python -m uvicorn pm100d.api:app --host 0.0.0.0 --port 8080
 
 # KDC101 DC Servo Controller (port 8081)
 uv run python -m uvicorn kdc101.api:app --host 0.0.0.0 --port 8081
+
+# Coordinated Scan (port 8082) — includes both devices
+uv run python -m scan.main
 ```
 
 Open your browser:
 - PM100D: http://localhost:8080
 - KDC101: http://localhost:8081
+- Coordinated Scan: http://localhost:8082
 
 ### Remote Access
 
@@ -148,6 +163,54 @@ The KDC101 reports position in encoder counts. The conversion factor depends on 
 | PRM1-Z8 (rotation) | 1,919.64 counts/deg |
 
 Set via API: `PUT /config/stage` with `{"counts_per_mm": 34304}`
+
+## Coordinated Scan API
+
+The scan module runs on port 8082 and provides a unified interface to both devices.
+
+### Scan Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/scan/start` | Start scan with configuration |
+| POST | `/scan/stop` | Abort running scan |
+| GET | `/scan/status` | Scan state, progress %, points collected |
+| GET | `/scan/result` | Complete scan data (after completion) |
+| POST | `/scan/estimate` | Estimate scan time for a configuration |
+| GET | `/scan/stream` | SSE stream of live scan points + status |
+| GET | `/scan/export` | CSV download (optional `start_mm` & `end_mm` query params for range filtering) |
+
+### Scan Modes
+
+**Absolute**: Specify start and end positions. Stage moves to start first, then scans to end.
+
+```json
+{
+  "mode": "absolute",
+  "start_mm": 0.0,
+  "end_mm": 12.0,
+  "velocity_mm_s": 2.0,
+  "acceleration_mm_s2": 5.0,
+  "sampling_interval_ms": 50
+}
+```
+
+**Relative**: Specify distance and direction from current position.
+
+```json
+{
+  "mode": "relative",
+  "distance_mm": 5.0,
+  "direction": "forward",
+  "velocity_mm_s": 2.0,
+  "acceleration_mm_s2": 5.0,
+  "sampling_interval_ms": 50
+}
+```
+
+### Device Proxy Endpoints
+
+The scan module also proxies device management endpoints under `/pm100d/...` and `/kdc101/...` prefixes (same API as the standalone services).
 
 ## Browser Direct-Connect Modes
 
