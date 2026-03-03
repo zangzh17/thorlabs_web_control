@@ -285,6 +285,25 @@
             background: #111318;
             border-radius: 4px;
         }
+
+        .proc-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .proc-row .field { flex: 1; }
+
+        .unit-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .unit-toggle-row .unit-label {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -514,22 +533,41 @@
             <canvas id="scanChart"></canvas>
         </div>
 
-        <!-- Crop & Export -->
+        <!-- Data Processing & Export -->
         <div class="panel">
-            <h3>Crop & Export</h3>
+            <h3>Data Processing & Export</h3>
             <div class="crop-info">
-                <span>Left: <span id="cropLeftVal">--</span> mm</span>
-                <span>Right: <span id="cropRightVal">--</span> mm</span>
+                <span>Start: <span id="cropLeftVal">--</span> mm</span>
+                <span>End: <span id="cropRightVal">--</span> mm</span>
             </div>
             <div style="font-size: 11px; color: #666; margin-bottom: 10px;">
-                Drag the vertical lines on the chart to adjust crop range. Processed data (orange) updates in real-time.
+                Drag the orange lines on the chart to set start/end extraction range.
+            </div>
+            <div class="proc-row">
+                <div class="field">
+                    <label>Samples (N)</label>
+                    <input type="number" id="sampleCountInput" value="10" min="2" step="1" onchange="onSampleParamChange()">
+                </div>
+                <div class="field">
+                    <label>Avg. Ratio (%)</label>
+                    <input type="number" id="avgRatioInput" value="20" min="0" max="100" step="1" onchange="onSampleParamChange()">
+                </div>
+            </div>
+            <div class="unit-toggle-row">
+                <span class="unit-label">Display:</span>
+                <div class="dir-toggle" style="flex:1;">
+                    <input type="radio" name="chartUnit" id="unitMw" value="mW" checked onchange="setChartUnit('mW')">
+                    <label for="unitMw">mW</label>
+                    <input type="radio" name="chartUnit" id="unitDbm" value="dBm" onchange="setChartUnit('dBm')">
+                    <label for="unitDbm">dBm</label>
+                </div>
             </div>
             <div class="export-row">
-                <button class="btn btn-primary" id="btnExport" onclick="exportCSV()" disabled>Export CSV</button>
-                <button class="btn btn-secondary" id="btnExportRaw" onclick="exportRawCSV()" disabled>Export Raw</button>
+                <button class="btn btn-primary" id="btnExportRaw" onclick="exportRawCSV()" disabled>Export Raw</button>
+                <button class="btn btn-secondary" id="btnExport" onclick="exportCSV()" disabled>Export Processed</button>
                 <span class="export-info">
                     Raw: <span id="totalPoints">0</span> |
-                    Processed: <span id="interpPoints">0</span>
+                    Samples: <span id="interpPoints">0</span>
                 </span>
             </div>
         </div>
@@ -1073,12 +1111,15 @@ let positionPollTimer = null;
 let scanningActive = false;
 let scanAbort = false;
 
-// Crop lines
-let cropLeft = 0;
-let cropRight = 0;
+// Marker lines & processing
+let cropLeft = 0;       // start position
+let cropRight = 0;      // end position
 let cropLinesVisible = false;
-let draggingLine = null; // 'left', 'right', or null
-let processedData = [];  // [{uniformX, originalX, power}]
+let draggingLine = null;
+let processedData = [];  // [{position, power, isEndpoint}]
+let sampleCount = 10;
+let avgRatio = 20;
+let chartDisplayUnit = 'mW'; // 'mW' or 'dBm'
 
 // ============================================================
 //  Power formatting
@@ -1106,8 +1147,22 @@ function updatePowerDisplay(power, unit) {
     }
 }
 
+function toDisplayUnit(power) {
+    if (chartDisplayUnit === 'dBm') {
+        if (cachedUnit.toUpperCase() === 'DBM') return power;
+        if (power <= 0) return -100;
+        return 10 * Math.log10(power) + 30;
+    } else {
+        // mW
+        if (cachedUnit.toUpperCase() === 'DBM') {
+            return Math.pow(10, (power - 30) / 10) * 1000;
+        }
+        return power * 1000;
+    }
+}
+
 // ============================================================
-//  Chart with Crop Line Plugin
+//  Chart with Marker Line Plugin
 // ============================================================
 const cropLinePlugin = {
     id: 'cropLines',
@@ -1125,16 +1180,23 @@ const cropLinePlugin = {
 
         ctx.save();
 
-        // Shade outside regions
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-        if (leftX > chartArea.left) {
-            ctx.fillRect(chartArea.left, top, leftX - chartArea.left, height);
-        }
-        if (rightX < chartArea.right) {
-            ctx.fillRect(rightX, top, chartArea.right - rightX, height);
+        // Draw averaging regions for each sample point
+        const N = sampleCount;
+        if (N >= 2 && avgRatio > 0) {
+            const range = cropRight - cropLeft;
+            const spacing = range / (N - 1);
+            const halfWindow = spacing * avgRatio / 200;
+
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.10)';
+            for (let i = 0; i < N; i++) {
+                const pos = cropLeft + spacing * i;
+                const wL = x.getPixelForValue(pos - halfWindow);
+                const wR = x.getPixelForValue(pos + halfWindow);
+                ctx.fillRect(wL, top, wR - wL, height);
+            }
         }
 
-        // Draw crop lines
+        // Draw start/end marker lines
         ctx.setLineDash([6, 4]);
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#f59e0b';
@@ -1149,7 +1211,7 @@ const cropLinePlugin = {
         ctx.lineTo(rightX, bottom);
         ctx.stroke();
 
-        // Draw drag handles (circles at top)
+        // Drag handles
         ctx.setLineDash([]);
         ctx.fillStyle = '#f59e0b';
 
@@ -1164,6 +1226,13 @@ const cropLinePlugin = {
         ctx.arc(rightX, top + 12, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+
+        // Labels
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Start', leftX, top - 4);
+        ctx.fillText('End', rightX, top - 4);
 
         ctx.restore();
     }
@@ -1186,14 +1255,14 @@ const chart = new Chart(ctx, {
                 tension: 0.1,
             },
             {
-                label: 'Processed (to save)',
+                label: 'Sampled Points',
                 data: [],
                 borderColor: '#f59e0b',
-                backgroundColor: 'rgba(245,158,11,0.05)',
-                borderWidth: 2.5,
-                pointRadius: 0,
-                showLine: true,
-                tension: 0,
+                backgroundColor: '#f59e0b',
+                borderWidth: 0,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                showLine: false,
             }
         ]
     },
@@ -1209,7 +1278,7 @@ const chart = new Chart(ctx, {
                 grid: { color: '#1e2030' },
             },
             y: {
-                title: { display: true, text: 'Power', color: '#888', font: { size: 12 } },
+                title: { display: true, text: 'Power (mW)', color: '#888', font: { size: 12 } },
                 ticks: { color: '#555', font: { size: 10 } },
                 grid: { color: '#1e2030' },
             }
@@ -1230,7 +1299,7 @@ const chart = new Chart(ctx, {
 });
 
 function addChartPoint(position, power) {
-    chart.data.datasets[0].data.push({ x: position, y: power });
+    chart.data.datasets[0].data.push({ x: position, y: toDisplayUnit(power) });
     chart.update('none');
 }
 
@@ -1325,57 +1394,98 @@ function computeProcessedData() {
         return;
     }
 
-    // Filter and sort by position
-    let filtered = scanData.filter(p => p.position_mm >= cropLeft && p.position_mm <= cropRight);
-    if (filtered.length < 2) {
+    const N = sampleCount;
+    const range = cropRight - cropLeft;
+    if (range <= 0 || N < 2) {
         processedData = [];
         chart.data.datasets[1].data = [];
         document.getElementById('interpPoints').textContent = '0';
         return;
     }
 
-    filtered.sort((a, b) => a.position_mm - b.position_mm);
+    const spacing = range / (N - 1);
+    const halfWindow = spacing * avgRatio / 200;
 
-    // Generate uniformly spaced X positions
-    const n = filtered.length;
-    const range = cropRight - cropLeft;
-    const step = range / (n - 1);
+    // Sort scan data by position for lookup
+    const sorted = [...scanData].sort((a, b) => a.position_mm - b.position_mm);
 
     processedData = [];
-    for (let i = 0; i < n; i++) {
-        const targetX = cropLeft + step * i;
+    for (let i = 0; i < N; i++) {
+        const targetX = cropLeft + spacing * i;
+        const windowLeft = targetX - halfWindow;
+        const windowRight = targetX + halfWindow;
 
-        // Linear interpolation: find surrounding points
-        let j = 0;
-        while (j < filtered.length - 1 && filtered[j + 1].position_mm <= targetX) j++;
+        // Average power within the window
+        let sum = 0, count = 0;
+        for (const p of sorted) {
+            if (p.position_mm >= windowLeft && p.position_mm <= windowRight) {
+                sum += p.power;
+                count++;
+            }
+        }
 
         let power;
-        if (j >= filtered.length - 1) {
-            power = filtered[filtered.length - 1].power;
+        if (count > 0) {
+            power = sum / count;
         } else {
-            const x0 = filtered[j].position_mm;
-            const x1 = filtered[j + 1].position_mm;
-            const y0 = filtered[j].power;
-            const y1 = filtered[j + 1].power;
-            if (x1 === x0) {
-                power = y0;
+            // Fallback: linear interpolation at targetX
+            let j = 0;
+            while (j < sorted.length - 1 && sorted[j + 1].position_mm <= targetX) j++;
+            if (j >= sorted.length - 1) {
+                power = sorted[sorted.length - 1].power;
             } else {
-                const t = (targetX - x0) / (x1 - x0);
-                power = y0 + t * (y1 - y0);
+                const x0 = sorted[j].position_mm;
+                const x1 = sorted[j + 1].position_mm;
+                const y0 = sorted[j].power;
+                const y1 = sorted[j + 1].power;
+                power = (x1 === x0) ? y0 : y0 + (targetX - x0) / (x1 - x0) * (y1 - y0);
             }
         }
 
         processedData.push({
-            uniformX: step * i,    // X starting from 0
-            originalX: targetX,    // Original position for overlay display
+            position: targetX,
             power: power,
+            isEndpoint: (i === 0 || i === N - 1),
         });
     }
 
-    // Update chart overlay (using original X for visual alignment)
-    chart.data.datasets[1].data = processedData.map(p => ({ x: p.originalX, y: p.power }));
+    // Update chart with display-unit-converted values
+    chart.data.datasets[1].data = processedData.map(p => ({
+        x: p.position,
+        y: toDisplayUnit(p.power),
+    }));
+
+    // Per-point radius: endpoints larger, middle smaller
+    chart.data.datasets[1].pointRadius = processedData.map(p => p.isEndpoint ? 5 : 3);
 
     document.getElementById('interpPoints').textContent = processedData.length;
+}
+
+function refreshChartData() {
+    // Re-map raw data to current display unit
+    chart.data.datasets[0].data = scanData.map(p => ({
+        x: p.position_mm,
+        y: toDisplayUnit(p.power),
+    }));
+    // Recompute processed data
+    computeProcessedData();
+    // Update y-axis label
+    chart.options.scales.y.title.text = 'Power (' + chartDisplayUnit + ')';
+    chart.update('none');
+}
+
+function setChartUnit(unit) {
+    chartDisplayUnit = unit;
+    document.getElementById('unitMw').checked = (unit === 'mW');
+    document.getElementById('unitDbm').checked = (unit === 'dBm');
+    refreshChartData();
+}
+
+function onSampleParamChange() {
+    sampleCount = Math.max(2, parseInt(document.getElementById('sampleCountInput').value) || 10);
+    avgRatio = Math.max(0, Math.min(100, parseFloat(document.getElementById('avgRatioInput').value) || 20));
+    computeProcessedData();
+    chart.update('none');
 }
 
 // ============================================================
@@ -1960,7 +2070,7 @@ function onScanComplete() {
     document.getElementById('btnExport').disabled = false;
     document.getElementById('btnExportRaw').disabled = false;
 
-    // Set crop lines to data boundaries
+    // Set marker lines to data boundaries
     if (scanData.length > 0) {
         const positions = scanData.map(p => p.position_mm);
         scanDataMin = Math.min(...positions);
@@ -1995,19 +2105,19 @@ function exportCSV() {
         return;
     }
 
-    let csv = 'position_mm,power,power_unit\n';
+    let csv = 'power,power_unit\n';
     for (const p of processedData) {
-        csv += `${p.uniformX.toFixed(6)},${p.power},${cachedUnit}\n`;
+        csv += `${p.power},${cachedUnit}\n`;
     }
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'scan_data.csv';
+    a.download = 'scan_processed.csv';
     a.click();
     URL.revokeObjectURL(url);
-    log(`Exported ${processedData.length} interpolated points to CSV`, 'ok');
+    log(`Exported ${processedData.length} sampled points to CSV`, 'ok');
 }
 
 function exportRawCSV() {
@@ -2016,16 +2126,16 @@ function exportRawCSV() {
         return;
     }
 
-    let csv = 'timestamp,position_mm,power,power_unit\n';
+    let csv = 'position_mm,power,power_unit\n';
     for (const p of scanData) {
-        csv += `${p.timestamp},${p.position_mm},${p.power},${p.power_unit}\n`;
+        csv += `${p.position_mm},${p.power},${p.power_unit}\n`;
     }
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'scan_data_raw.csv';
+    a.download = 'scan_raw.csv';
     a.click();
     URL.revokeObjectURL(url);
     log(`Exported ${scanData.length} raw points to CSV`, 'ok');

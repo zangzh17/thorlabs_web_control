@@ -57,7 +57,13 @@ Position display with absolute move, relative move, jog, and home commands. Conf
 
 ### Coordinated Scan
 
-Coordinated spatial power scanning using both PM100D and KDC101. Supports relative and center-based scan modes. Live power-vs-position chart with crop lines for data selection. CSV export of scan results.
+Coordinated spatial power scanning using both PM100D and KDC101.
+
+- **Scan modes**: Relative (from current position) and center-based (symmetric around current position)
+- **Sample extraction**: Set the number of uniformly spaced sample points (N) between draggable start/end markers; the N-2 interior points are marked on the chart, with endpoints indicated by the marker lines
+- **Neighbor averaging**: Configurable averaging ratio (default 20%) -- for each sample point, power values within ±(ratio/2)% of the inter-sample spacing are averaged; the averaging windows are visualized as shaded regions on the chart
+- **Display unit toggle**: Switch the chart between mW and dBm display with automatic data conversion and axis rescaling
+- **CSV export**: Export raw scan data (position + power) or processed N-point data (averaged power only)
 
 ## Stage Configuration
 
