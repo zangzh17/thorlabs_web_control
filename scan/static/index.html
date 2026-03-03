@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinated Scan</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e0e0e0; }
+
+        .header {
+            background: #1a1d27;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2a2d3a;
+        }
+        .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+        .header-status { display: flex; gap: 16px; align-items: center; font-size: 13px; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            display: inline-block; margin-right: 4px;
+        }
+        .status-dot.on { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+        .status-dot.off { background: #666; }
+
+        .container { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); }
+
+        .sidebar { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+        .panel {
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .panel h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #374151; color: #e0e0e0; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-warning { background: #f59e0b; color: #000; }
+        .btn-warning:hover { background: #d97706; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+        .btn-block { width: 100%; }
+
+        select, input[type="number"], input[type="text"] {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 100%;
+        }
+        select:focus, input:focus { outline: none; border-color: #3b82f6; }
+
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+
+        .main-area { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+        .chart-container {
+            flex: 1;
+            min-height: 350px;
+            position: relative;
+        }
+
+        .log-box {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 120px;
+            overflow-y: auto;
+            color: #888;
+        }
+        .log-box .log-error { color: #ef4444; }
+        .log-box .log-ok { color: #22c55e; }
+
+        .mode-toggle {
+            display: flex;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .mode-toggle label {
+            flex: 1;
+            padding: 8px 0;
+            text-align: center;
+            font-size: 13px;
+            cursor: pointer;
+            background: #111318;
+            transition: all 0.15s;
+        }
+        .mode-toggle input[type="radio"] { display: none; }
+        .mode-toggle input[type="radio"]:checked + label {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .mode-fields { display: none; }
+        .mode-fields.active { display: block; }
+
+        .dir-toggle {
+            display: flex;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .dir-toggle label {
+            flex: 1;
+            padding: 6px 0;
+            text-align: center;
+            font-size: 13px;
+            cursor: pointer;
+            background: #111318;
+            transition: all 0.15s;
+        }
+        .dir-toggle input[type="radio"] { display: none; }
+        .dir-toggle input[type="radio"]:checked + label {
+            background: #22c55e;
+            color: #fff;
+        }
+
+        .estimate-box {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .estimate-box .est-label { color: #888; }
+        .estimate-box .est-value { color: #f59e0b; font-weight: 600; font-family: monospace; }
+
+        .scan-state-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-idle { background: #374151; color: #9ca3af; }
+        .badge-preparing { background: #1e3a5f; color: #60a5fa; }
+        .badge-scanning { background: #14532d; color: #4ade80; }
+        .badge-complete { background: #422006; color: #f59e0b; }
+        .badge-error { background: #450a0a; color: #f87171; }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #111318;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: #22c55e;
+            border-radius: 3px;
+            transition: width 0.2s;
+            width: 0%;
+        }
+
+        .range-selector {
+            padding: 16px 0 8px;
+        }
+        .range-selector .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        .range-selector .range-values {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #e0e0e0;
+            font-family: monospace;
+        }
+        .range-slider-container {
+            position: relative;
+            height: 30px;
+        }
+        .range-slider-container input[type="range"] {
+            position: absolute;
+            width: 100%;
+            top: 0;
+            height: 30px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            pointer-events: none;
+            padding: 0;
+            border: none;
+        }
+        .range-slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            pointer-events: auto;
+            border: 2px solid #1e40af;
+        }
+        .range-slider-container input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: #2a2d3a;
+            border-radius: 2px;
+        }
+
+        .export-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .export-info {
+            font-size: 12px;
+            color: #888;
+            margin-left: auto;
+            font-family: monospace;
+        }
+
+        .position-display {
+            font-size: 14px;
+            font-family: monospace;
+            color: #60a5fa;
+            padding: 6px 0;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            font-size: 12px;
+        }
+        .info-grid .label { color: #666; }
+        .info-grid .value { color: #ccc; text-align: right; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Coordinated Scan</h1>
+    <div class="header-status">
+        <span>
+            <span class="status-dot off" id="pmDot"></span>PM100D
+        </span>
+        <span>
+            <span class="status-dot off" id="kdcDot"></span>KDC101
+        </span>
+        <span class="scan-state-badge badge-idle" id="scanBadge">IDLE</span>
+    </div>
+</div>
+
+<div class="container">
+    <div class="sidebar">
+        <!-- Device Setup -->
+        <div class="panel">
+            <h3>Device Setup</h3>
+
+            <div class="field">
+                <label>PM100D (Power Meter)</label>
+                <select id="pmSelect"><option value="">-- Scan --</option></select>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="scanPM()">Scan</button>
+                <button class="btn btn-success" id="btnPmConnect" onclick="connectPM()">Connect</button>
+                <button class="btn btn-danger" id="btnPmDisconnect" onclick="disconnectPM()" disabled>Disconnect</button>
+            </div>
+
+            <div style="margin-top: 12px;">
+                <div class="field">
+                    <label>KDC101 (Translation Stage)</label>
+                    <select id="kdcSelect"><option value="">-- Scan --</option></select>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="scanKDC()">Scan</button>
+                    <button class="btn btn-success" id="btnKdcConnect" onclick="connectKDC()">Connect</button>
+                    <button class="btn btn-danger" id="btnKdcDisconnect" onclick="disconnectKDC()" disabled>Disconnect</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PM100D Config -->
+        <div class="panel">
+            <h3>PM100D Config</h3>
+            <div class="field">
+                <label>Wavelength (nm)</label>
+                <div class="btn-row">
+                    <input type="number" id="cfgWavelength" value="632.8" step="0.1">
+                    <button class="btn btn-primary" onclick="setWavelength()">Set</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Averaging</label>
+                <div class="btn-row">
+                    <input type="number" id="cfgAveraging" value="1" min="1" step="1">
+                    <button class="btn btn-primary" onclick="setAveraging()">Set</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Unit</label>
+                <div class="btn-row">
+                    <select id="cfgUnit">
+                        <option value="W">W</option>
+                        <option value="DBM">dBm</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="setUnit()">Set</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Power Range</label>
+                <div class="btn-row" style="align-items: center;">
+                    <input type="number" id="cfgRange" step="0.001" style="flex:1;">
+                    <button class="btn btn-primary" onclick="setRange()">Set</button>
+                </div>
+                <div style="margin-top: 6px;">
+                    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #888;">
+                        <input type="checkbox" id="cfgAutoRange" onchange="setAutoRange()"> Auto Range
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage Config -->
+        <div class="panel">
+            <h3>Stage Config</h3>
+            <div class="position-display">
+                Position: <span id="stagePosition">--</span> mm
+            </div>
+            <div class="field">
+                <label>Velocity (mm/s)</label>
+                <input type="number" id="cfgVelocity" value="2.0" step="0.1" min="0.01">
+            </div>
+            <div class="field">
+                <label>Acceleration (mm/s&sup2;)</label>
+                <input type="number" id="cfgAccel" value="5.0" step="0.1" min="0.01">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-warning" onclick="homeStage()">Home</button>
+                <button class="btn btn-danger" onclick="stopStage()">Stop</button>
+                <button class="btn btn-secondary" onclick="refreshStagePosition()">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Scan Setup -->
+        <div class="panel">
+            <h3>Scan Setup</h3>
+
+            <div class="mode-toggle">
+                <input type="radio" name="scanMode" id="modeAbsolute" value="absolute" checked onchange="onModeChange()">
+                <label for="modeAbsolute">Absolute</label>
+                <input type="radio" name="scanMode" id="modeRelative" value="relative" onchange="onModeChange()">
+                <label for="modeRelative">Relative</label>
+            </div>
+
+            <div id="absoluteFields" class="mode-fields active">
+                <div class="field">
+                    <label>Start Position (mm)</label>
+                    <input type="number" id="scanStart" value="0" step="0.001">
+                </div>
+                <div class="field">
+                    <label>End Position (mm)</label>
+                    <input type="number" id="scanEnd" value="12" step="0.001">
+                </div>
+            </div>
+
+            <div id="relativeFields" class="mode-fields">
+                <div class="field">
+                    <label>Distance (mm)</label>
+                    <input type="number" id="scanDistance" value="5" step="0.001" min="0.001">
+                </div>
+                <div class="field">
+                    <label>Direction</label>
+                    <div class="dir-toggle">
+                        <input type="radio" name="scanDir" id="dirForward" value="forward" checked>
+                        <label for="dirForward">+ Forward</label>
+                        <input type="radio" name="scanDir" id="dirBackward" value="backward">
+                        <label for="dirBackward">- Backward</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Sampling Interval (ms)</label>
+                <input type="number" id="scanInterval" value="50" min="10" step="10">
+            </div>
+
+            <div class="estimate-box">
+                <span class="est-label">Estimated time</span>
+                <span class="est-value" id="estTime">--</span>
+            </div>
+
+            <div class="progress-bar" id="progressBar" style="display:none;">
+                <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+
+            <div class="btn-row" style="margin-top: 12px;">
+                <button class="btn btn-success btn-block" id="btnStartScan" onclick="startScan()">Start Scan</button>
+                <button class="btn btn-danger" id="btnStopScan" onclick="stopScan()" disabled>Stop</button>
+            </div>
+        </div>
+
+        <!-- Log -->
+        <div class="panel">
+            <h3>Log</h3>
+            <div class="log-box" id="logBox"></div>
+        </div>
+    </div>
+
+    <div class="main-area">
+        <!-- Chart -->
+        <div class="panel chart-container">
+            <canvas id="scanChart"></canvas>
+        </div>
+
+        <!-- Range Selector & Export -->
+        <div class="panel">
+            <h3>Data Range & Export</h3>
+            <div class="range-selector">
+                <div class="range-labels">
+                    <span>Start</span>
+                    <span>End</span>
+                </div>
+                <div class="range-slider-container">
+                    <input type="range" id="rangeMin" min="0" max="100" value="0" step="0.001" oninput="onRangeChange()">
+                    <input type="range" id="rangeMax" min="0" max="100" value="100" step="0.001" oninput="onRangeChange()">
+                </div>
+                <div class="range-values">
+                    <span id="rangeMinVal">0.000 mm</span>
+                    <span id="rangeMaxVal">0.000 mm</span>
+                </div>
+            </div>
+            <div class="export-row" style="margin-top: 8px;">
+                <button class="btn btn-primary" id="btnExportAll" onclick="exportCSV(false)" disabled>Export All CSV</button>
+                <button class="btn btn-secondary" id="btnExportRange" onclick="exportCSV(true)" disabled>Export Range CSV</button>
+                <span class="export-info">
+                    Total: <span id="totalPoints">0</span> |
+                    Range: <span id="rangePoints">0</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Scan Info -->
+        <div class="panel" id="scanInfoPanel" style="display:none;">
+            <h3>Scan Result</h3>
+            <div class="info-grid">
+                <span class="label">Actual Start</span><span class="value" id="resStart">-</span>
+                <span class="label">Actual End</span><span class="value" id="resEnd">-</span>
+                <span class="label">Duration</span><span class="value" id="resDuration">-</span>
+                <span class="label">Points</span><span class="value" id="resPoints">-</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '';
+let sseSource = null;
+let scanData = [];  // Array of {position_mm, power, power_unit, timestamp}
+let scanDataMin = 0;
+let scanDataMax = 1;
+
+// --- Chart ---
+const ctx = document.getElementById('scanChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Power vs Position',
+            data: [],
+            borderColor: '#4caf50',
+            backgroundColor: 'rgba(76,175,80,0.3)',
+            borderWidth: 1.5,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            showLine: true,
+            tension: 0.1,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+            x: {
+                type: 'linear',
+                title: { display: true, text: 'Position (mm)', color: '#888', font: { size: 12 } },
+                ticks: { color: '#555', font: { size: 10 } },
+                grid: { color: '#1e2030' },
+            },
+            y: {
+                title: { display: true, text: 'Power', color: '#888', font: { size: 12 } },
+                ticks: { color: '#555', font: { size: 10 } },
+                grid: { color: '#1e2030' },
+            }
+        },
+        plugins: {
+            legend: { display: false },
+        }
+    }
+});
+
+function addChartPoint(position, power) {
+    chart.data.datasets[0].data.push({ x: position, y: power });
+    chart.update('none');
+}
+
+function clearChart() {
+    chart.data.datasets[0].data = [];
+    chart.update();
+}
+
+// --- Logging ---
+function log(msg, type = '') {
+    const box = document.getElementById('logBox');
+    const cls = type === 'error' ? 'log-error' : type === 'ok' ? 'log-ok' : '';
+    const time = new Date().toLocaleTimeString('en', { hour12: false });
+    box.innerHTML += `<div class="${cls}">[${time}] ${msg}</div>`;
+    box.scrollTop = box.scrollHeight;
+}
+
+// --- API helpers ---
+async function api(method, path, body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    return data;
+}
+
+// --- Device: PM100D ---
+async function scanPM() {
+    try {
+        const devices = await api('GET', '/pm100d/device/list');
+        const sel = document.getElementById('pmSelect');
+        sel.innerHTML = '';
+        if (devices.length === 0) {
+            sel.innerHTML = '<option value="">No devices</option>';
+            log('PM100D scan: none found', 'error');
+        } else {
+            devices.forEach(d => { sel.innerHTML += `<option value="${d}">${d}</option>`; });
+            log(`PM100D scan: ${devices.length} found`, 'ok');
+        }
+    } catch (e) { log('PM100D scan error: ' + e.message, 'error'); }
+}
+
+async function connectPM() {
+    const resource = document.getElementById('pmSelect').value;
+    if (!resource) { log('No PM100D selected', 'error'); return; }
+    try {
+        await api('POST', '/pm100d/device/connect', { visa_resource: resource });
+        log('PM100D connected', 'ok');
+        updatePMUI(true);
+        await refreshPMConfig();
+    } catch (e) { log('PM100D connect error: ' + e.message, 'error'); }
+}
+
+async function disconnectPM() {
+    try {
+        await api('POST', '/pm100d/device/disconnect');
+        log('PM100D disconnected', 'ok');
+        updatePMUI(false);
+    } catch (e) { log('PM100D disconnect error: ' + e.message, 'error'); }
+}
+
+function updatePMUI(connected) {
+    document.getElementById('pmDot').className = 'status-dot ' + (connected ? 'on' : 'off');
+    document.getElementById('btnPmConnect').disabled = connected;
+    document.getElementById('btnPmDisconnect').disabled = !connected;
+    updateScanButton();
+}
+
+// --- Device: KDC101 ---
+async function scanKDC() {
+    try {
+        const devices = await api('GET', '/kdc101/device/list');
+        const sel = document.getElementById('kdcSelect');
+        sel.innerHTML = '';
+        if (devices.length === 0) {
+            sel.innerHTML = '<option value="">No devices</option>';
+            log('KDC101 scan: none found', 'error');
+        } else {
+            devices.forEach(d => { sel.innerHTML += `<option value="${d.serial_number}">${d.description} (${d.serial_number})</option>`; });
+            log(`KDC101 scan: ${devices.length} found`, 'ok');
+        }
+    } catch (e) { log('KDC101 scan error: ' + e.message, 'error'); }
+}
+
+async function connectKDC() {
+    const sn = document.getElementById('kdcSelect').value;
+    if (!sn) { log('No KDC101 selected', 'error'); return; }
+    try {
+        await api('POST', '/kdc101/device/connect', { serial_number: sn });
+        log('KDC101 connected', 'ok');
+        updateKDCUI(true);
+        await refreshStagePosition();
+    } catch (e) { log('KDC101 connect error: ' + e.message, 'error'); }
+}
+
+async function disconnectKDC() {
+    try {
+        await api('POST', '/kdc101/device/disconnect');
+        log('KDC101 disconnected', 'ok');
+        updateKDCUI(false);
+    } catch (e) { log('KDC101 disconnect error: ' + e.message, 'error'); }
+}
+
+function updateKDCUI(connected) {
+    document.getElementById('kdcDot').className = 'status-dot ' + (connected ? 'on' : 'off');
+    document.getElementById('btnKdcConnect').disabled = connected;
+    document.getElementById('btnKdcDisconnect').disabled = !connected;
+    updateScanButton();
+}
+
+function updateScanButton() {
+    const pmOk = !document.getElementById('btnPmConnect').disabled;
+    const kdcOk = !document.getElementById('btnKdcConnect').disabled;
+    const badge = document.getElementById('scanBadge');
+    const scanning = badge.textContent === 'SCANNING' || badge.textContent === 'PREPARING';
+    document.getElementById('btnStartScan').disabled = !(pmOk && kdcOk) || scanning;
+}
+
+// --- PM100D Config ---
+async function refreshPMConfig() {
+    try {
+        const cfg = await api('GET', '/pm100d/config');
+        document.getElementById('cfgWavelength').value = cfg.wavelength;
+        document.getElementById('cfgAveraging').value = cfg.averaging;
+        document.getElementById('cfgUnit').value = cfg.power_unit.replace(/"/g, '');
+        document.getElementById('cfgRange').value = cfg.power_range;
+        document.getElementById('cfgAutoRange').checked = cfg.auto_range;
+    } catch (e) { log('PM100D config error: ' + e.message, 'error'); }
+}
+
+async function setWavelength() {
+    try {
+        const v = parseFloat(document.getElementById('cfgWavelength').value);
+        await api('PUT', '/pm100d/config/wavelength', { wavelength_nm: v });
+        log(`Wavelength set to ${v} nm`, 'ok');
+    } catch (e) { log('Wavelength error: ' + e.message, 'error'); }
+}
+
+async function setAveraging() {
+    try {
+        const v = parseInt(document.getElementById('cfgAveraging').value);
+        await api('PUT', '/pm100d/config/averaging', { count: v });
+        log(`Averaging set to ${v}`, 'ok');
+    } catch (e) { log('Averaging error: ' + e.message, 'error'); }
+}
+
+async function setUnit() {
+    try {
+        const v = document.getElementById('cfgUnit').value;
+        await api('PUT', '/pm100d/config/unit', { unit: v });
+        log(`Unit set to ${v}`, 'ok');
+    } catch (e) { log('Unit error: ' + e.message, 'error'); }
+}
+
+async function setRange() {
+    try {
+        const v = parseFloat(document.getElementById('cfgRange').value);
+        await api('PUT', '/pm100d/config/range', { power_range_w: v });
+        log(`Range set`, 'ok');
+    } catch (e) { log('Range error: ' + e.message, 'error'); }
+}
+
+async function setAutoRange() {
+    try {
+        const v = document.getElementById('cfgAutoRange').checked;
+        await api('PUT', '/pm100d/config/range', { auto_range: v });
+        log(`Auto range: ${v}`, 'ok');
+    } catch (e) { log('Auto range error: ' + e.message, 'error'); }
+}
+
+// --- Stage Config ---
+async function refreshStagePosition() {
+    try {
+        const st = await api('GET', '/kdc101/device/status');
+        if (st.position_mm != null) {
+            document.getElementById('stagePosition').textContent = st.position_mm.toFixed(3);
+        }
+    } catch (e) { log('Position refresh error: ' + e.message, 'error'); }
+}
+
+async function homeStage() {
+    try {
+        await api('POST', '/kdc101/motion/home');
+        log('Homing started', 'ok');
+    } catch (e) { log('Home error: ' + e.message, 'error'); }
+}
+
+async function stopStage() {
+    try {
+        await api('POST', '/kdc101/motion/stop', null);
+        log('Stage stopped', 'ok');
+    } catch (e) { log('Stop error: ' + e.message, 'error'); }
+}
+
+// --- Mode Toggle ---
+function onModeChange() {
+    const isAbsolute = document.getElementById('modeAbsolute').checked;
+    document.getElementById('absoluteFields').classList.toggle('active', isAbsolute);
+    document.getElementById('relativeFields').classList.toggle('active', !isAbsolute);
+    updateEstimate();
+}
+
+// --- Time Estimation ---
+function updateEstimate() {
+    const mode = document.getElementById('modeAbsolute').checked ? 'absolute' : 'relative';
+    const velocity = parseFloat(document.getElementById('cfgVelocity').value) || 2;
+    const accel = parseFloat(document.getElementById('cfgAccel').value) || 5;
+    let distance;
+
+    if (mode === 'absolute') {
+        const start = parseFloat(document.getElementById('scanStart').value) || 0;
+        const end = parseFloat(document.getElementById('scanEnd').value) || 0;
+        distance = Math.abs(end - start);
+    } else {
+        distance = parseFloat(document.getElementById('scanDistance').value) || 0;
+    }
+
+    // Trapezoidal estimate
+    const tAccel = velocity / accel;
+    const dAccel = 0.5 * accel * tAccel * tAccel;
+    let time;
+    if (2 * dAccel >= distance) {
+        time = 2 * Math.sqrt(distance / accel);
+    } else {
+        const dCruise = distance - 2 * dAccel;
+        const tCruise = dCruise / velocity;
+        time = 2 * tAccel + tCruise;
+    }
+
+    document.getElementById('estTime').textContent = time > 0 ? `~${time.toFixed(1)}s` : '--';
+}
+
+// Attach estimate update to relevant inputs
+['cfgVelocity', 'cfgAccel', 'scanStart', 'scanEnd', 'scanDistance'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateEstimate);
+});
+
+// --- Scan Control ---
+async function startScan() {
+    const mode = document.getElementById('modeAbsolute').checked ? 'absolute' : 'relative';
+    const velocity = parseFloat(document.getElementById('cfgVelocity').value);
+    const accel = parseFloat(document.getElementById('cfgAccel').value);
+    const interval = parseInt(document.getElementById('scanInterval').value);
+
+    const config = {
+        mode: mode,
+        velocity_mm_s: velocity,
+        acceleration_mm_s2: accel,
+        sampling_interval_ms: interval,
+    };
+
+    if (mode === 'absolute') {
+        config.start_mm = parseFloat(document.getElementById('scanStart').value);
+        config.end_mm = parseFloat(document.getElementById('scanEnd').value);
+    } else {
+        config.distance_mm = parseFloat(document.getElementById('scanDistance').value);
+        config.direction = document.getElementById('dirForward').checked ? 'forward' : 'backward';
+    }
+
+    // Set velocity params first
+    try {
+        await api('PUT', '/kdc101/config/velocity', {
+            max_velocity_mm_s: velocity,
+            acceleration_mm_s2: accel,
+        });
+    } catch (e) {
+        log('Failed to set velocity: ' + e.message, 'error');
+        return;
+    }
+
+    // Clear previous data
+    scanData = [];
+    clearChart();
+    document.getElementById('scanInfoPanel').style.display = 'none';
+    document.getElementById('btnExportAll').disabled = true;
+    document.getElementById('btnExportRange').disabled = true;
+
+    try {
+        const res = await api('POST', '/scan/start', config);
+        log(`Scan started (est. ${res.estimated_time_s.toFixed(1)}s)`, 'ok');
+        updateScanState('preparing');
+        document.getElementById('btnStartScan').disabled = true;
+        document.getElementById('btnStopScan').disabled = false;
+        document.getElementById('progressBar').style.display = 'block';
+        startScanSSE();
+    } catch (e) {
+        log('Start scan error: ' + e.message, 'error');
+    }
+}
+
+async function stopScan() {
+    try {
+        await api('POST', '/scan/stop');
+        log('Scan stop requested', 'ok');
+    } catch (e) { log('Stop scan error: ' + e.message, 'error'); }
+}
+
+function startScanSSE() {
+    stopScanSSE();
+    sseSource = new EventSource(API + '/scan/stream');
+
+    sseSource.addEventListener('scan_point', (e) => {
+        const p = JSON.parse(e.data);
+        scanData.push(p);
+        addChartPoint(p.position_mm, p.power);
+    });
+
+    sseSource.addEventListener('scan_status', (e) => {
+        const s = JSON.parse(e.data);
+        updateScanState(s.state);
+        document.getElementById('totalPoints').textContent = s.points_collected;
+
+        if (s.progress_percent != null) {
+            document.getElementById('progressFill').style.width = s.progress_percent + '%';
+        }
+
+        if (s.state === 'complete') {
+            stopScanSSE();
+            onScanComplete();
+        } else if (s.state === 'error') {
+            stopScanSSE();
+            log('Scan error: ' + (s.error_message || 'unknown'), 'error');
+            document.getElementById('btnStartScan').disabled = false;
+            document.getElementById('btnStopScan').disabled = true;
+            document.getElementById('progressBar').style.display = 'none';
+        } else if (s.state === 'idle') {
+            stopScanSSE();
+            document.getElementById('btnStartScan').disabled = false;
+            document.getElementById('btnStopScan').disabled = true;
+            document.getElementById('progressBar').style.display = 'none';
+        }
+    });
+
+    sseSource.onerror = () => {
+        log('SSE connection error', 'error');
+        stopScanSSE();
+    };
+}
+
+function stopScanSSE() {
+    if (sseSource) {
+        sseSource.close();
+        sseSource = null;
+    }
+}
+
+function updateScanState(state) {
+    const badge = document.getElementById('scanBadge');
+    badge.textContent = state.toUpperCase();
+    badge.className = 'scan-state-badge badge-' + state;
+}
+
+async function onScanComplete() {
+    log('Scan complete!', 'ok');
+    document.getElementById('btnStartScan').disabled = false;
+    document.getElementById('btnStopScan').disabled = true;
+    document.getElementById('progressBar').style.display = 'none';
+    document.getElementById('progressFill').style.width = '100%';
+
+    // Enable export
+    document.getElementById('btnExportAll').disabled = false;
+    document.getElementById('btnExportRange').disabled = false;
+
+    // Update range slider bounds
+    if (scanData.length > 0) {
+        const positions = scanData.map(p => p.position_mm);
+        scanDataMin = Math.min(...positions);
+        scanDataMax = Math.max(...positions);
+        const rangeMin = document.getElementById('rangeMin');
+        const rangeMax = document.getElementById('rangeMax');
+        rangeMin.min = scanDataMin;
+        rangeMin.max = scanDataMax;
+        rangeMin.value = scanDataMin;
+        rangeMin.step = (scanDataMax - scanDataMin) / 1000;
+        rangeMax.min = scanDataMin;
+        rangeMax.max = scanDataMax;
+        rangeMax.value = scanDataMax;
+        rangeMax.step = (scanDataMax - scanDataMin) / 1000;
+        onRangeChange();
+    }
+
+    // Show scan info
+    try {
+        const result = await api('GET', '/scan/result');
+        document.getElementById('scanInfoPanel').style.display = 'block';
+        document.getElementById('resStart').textContent = result.actual_start_mm.toFixed(3) + ' mm';
+        document.getElementById('resEnd').textContent = result.actual_end_mm.toFixed(3) + ' mm';
+        document.getElementById('resDuration').textContent = (result.end_time - result.start_time).toFixed(1) + ' s';
+        document.getElementById('resPoints').textContent = result.points.length;
+    } catch (e) { log('Result fetch error: ' + e.message, 'error'); }
+
+    // Refresh position
+    await refreshStagePosition();
+    updateScanButton();
+}
+
+// --- Range Slider ---
+function onRangeChange() {
+    let lo = parseFloat(document.getElementById('rangeMin').value);
+    let hi = parseFloat(document.getElementById('rangeMax').value);
+    if (lo > hi) {
+        [lo, hi] = [hi, lo];
+    }
+    document.getElementById('rangeMinVal').textContent = lo.toFixed(3) + ' mm';
+    document.getElementById('rangeMaxVal').textContent = hi.toFixed(3) + ' mm';
+
+    // Count points in range
+    const count = scanData.filter(p => p.position_mm >= lo && p.position_mm <= hi).length;
+    document.getElementById('rangePoints').textContent = count;
+}
+
+// --- CSV Export ---
+function exportCSV(rangeOnly) {
+    let startMm = null, endMm = null;
+    if (rangeOnly) {
+        startMm = parseFloat(document.getElementById('rangeMin').value);
+        endMm = parseFloat(document.getElementById('rangeMax').value);
+        if (startMm > endMm) [startMm, endMm] = [endMm, startMm];
+    }
+
+    let url = API + '/scan/export';
+    if (startMm != null && endMm != null) {
+        url += `?start_mm=${startMm}&end_mm=${endMm}`;
+    }
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = rangeOnly ? 'scan_data_range.csv' : 'scan_data.csv';
+    a.click();
+}
+
+// --- Init ---
+window.addEventListener('load', async () => {
+    log('Coordinated Scan GUI loaded');
+    updateEstimate();
+
+    // Check device statuses
+    try {
+        const pmSt = await api('GET', '/pm100d/device/status');
+        updatePMUI(pmSt.connected);
+        if (pmSt.connected) await refreshPMConfig();
+    } catch (e) {}
+
+    try {
+        const kdcSt = await api('GET', '/kdc101/device/status');
+        updateKDCUI(kdcSt.connected);
+        if (kdcSt.connected) await refreshStagePosition();
+    } catch (e) {}
+});
+</script>
+</body>
+</html>
