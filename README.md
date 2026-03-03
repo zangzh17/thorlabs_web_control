@@ -82,7 +82,7 @@ Both devices require the WinUSB driver installed via [Zadig](https://zadig.akeo.
 4. Set the target driver to **WinUSB**
 5. Click **Replace Driver**
 
-> **Warning**: Replacing the driver is not easily reversible. The original driver (NI-VISA for PM100D, FTDI D2XX for KDC101) must be manually reinstalled if you want to revert. Applications that depend on the original driver (e.g., Thorlabs Kinesis, NI MAX) will not work after the replacement.
+> **Warning**: Replacing the driver is not easily reversible. The original driver (NI-VISA for PM100D, FTDI D2XX for KDC101) must be manually reinstalled if you want to revert. Applications that depend on the original driver (e.g., Thorlabs Kinesis, NI MAX) will not work after the replacement (will only affect this computer).
 
 ## Project Structure
 
