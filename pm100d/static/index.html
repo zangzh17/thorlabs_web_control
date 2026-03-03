@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM100D Power Meter</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e0e0e0; }
+
+        .header {
+            background: #1a1d27;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2a2d3a;
+        }
+        .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            display: inline-block; margin-right: 8px;
+        }
+        .status-dot.on { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+        .status-dot.off { background: #666; }
+
+        .container { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); }
+
+        .sidebar { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+        .panel {
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .panel h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #374151; color: #e0e0e0; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+
+        select, input {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 100%;
+        }
+        select:focus, input:focus { outline: none; border-color: #3b82f6; }
+
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+
+        .power-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .power-value {
+            font-size: 48px;
+            font-weight: 700;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: #4caf50;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+        .power-unit { font-size: 18px; color: #888; margin-top: 4px; }
+
+        .main-area { display: flex; flex-direction: column; gap: 12px; }
+
+        .chart-container {
+            flex: 1;
+            min-height: 300px;
+            position: relative;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 12px;
+        }
+        .info-grid .label { color: #666; }
+        .info-grid .value { color: #ccc; text-align: right; font-family: monospace; }
+
+        .log-box {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 120px;
+            overflow-y: auto;
+            color: #888;
+        }
+        .log-box .log-error { color: #ef4444; }
+        .log-box .log-ok { color: #22c55e; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>PM100D Power Meter</h1>
+    <div id="statusBar">
+        <span class="status-dot off" id="statusDot"></span>
+        <span id="statusText">Disconnected</span>
+    </div>
+</div>
+
+<div class="container">
+    <div class="sidebar">
+        <!-- Device Panel -->
+        <div class="panel">
+            <h3>Device</h3>
+            <div class="field">
+                <label>VISA Resource</label>
+                <select id="deviceSelect"><option value="">-- Scan first --</option></select>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="scanDevices()">Scan</button>
+                <button class="btn btn-success" id="btnConnect" onclick="connectDevice()">Connect</button>
+                <button class="btn btn-danger" id="btnDisconnect" onclick="disconnectDevice()" disabled>Disconnect</button>
+            </div>
+            <div id="deviceInfo" style="margin-top: 12px; display: none;">
+                <div class="info-grid">
+                    <span class="label">IDN</span><span class="value" id="infoIdn">-</span>
+                    <span class="label">Sensor</span><span class="value" id="infoSensor">-</span>
+                    <span class="label">WL Range</span><span class="value" id="infoWlRange">-</span>
+                    <span class="label">Power Range</span><span class="value" id="infoPwrRange">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Panel -->
+        <div class="panel">
+            <h3>Configuration</h3>
+            <div class="field">
+                <label>Wavelength (nm)</label>
+                <div class="btn-row">
+                    <input type="number" id="cfgWavelength" value="632.8" step="0.1">
+                    <button class="btn btn-primary" onclick="setWavelength()">Set</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Averaging Count</label>
+                <div class="btn-row">
+                    <input type="number" id="cfgAveraging" value="1" min="1" step="1">
+                    <button class="btn btn-primary" onclick="setAveraging()">Set</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Power Unit</label>
+                <div class="btn-row">
+                    <select id="cfgUnit">
+                        <option value="W">W</option>
+                        <option value="DBM">dBm</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="setUnit()">Set</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Power Range</label>
+                <div class="btn-row" style="align-items: center;">
+                    <input type="number" id="cfgRange" step="0.001" style="flex:1;">
+                    <button class="btn btn-primary" onclick="setRange()">Set</button>
+                </div>
+                <div style="margin-top: 6px;">
+                    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" id="cfgAutoRange" onchange="setAutoRange()"> Auto Range
+                    </label>
+                </div>
+            </div>
+            <button class="btn btn-secondary" style="width:100%; margin-top: 4px;" onclick="refreshConfig()">Refresh Config</button>
+        </div>
+
+        <!-- Calibration Panel -->
+        <div class="panel">
+            <h3>Calibration</h3>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="startZero()">Zero</button>
+                <button class="btn btn-secondary" onclick="checkZeroStatus()">Check Status</button>
+            </div>
+            <div id="zeroStatus" style="margin-top: 8px; font-size: 12px; color: #888;"></div>
+        </div>
+
+        <!-- Measurement Control -->
+        <div class="panel">
+            <h3>Acquisition</h3>
+            <div class="field">
+                <label>Interval (ms)</label>
+                <input type="number" id="acqInterval" value="100" min="10" step="10">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-success" id="btnStart" onclick="startAcquisition()">Start</button>
+                <button class="btn btn-danger" id="btnStop" onclick="stopAcquisition()" disabled>Stop</button>
+                <button class="btn btn-secondary" onclick="singleRead()">Single</button>
+            </div>
+            <div class="btn-row" style="margin-top: 4px;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="clearChart()">Clear Chart</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-area">
+        <!-- Power Display -->
+        <div class="panel power-display">
+            <div class="power-value" id="powerValue">---</div>
+            <div class="power-unit" id="powerUnit">W</div>
+        </div>
+
+        <!-- Chart -->
+        <div class="panel chart-container">
+            <canvas id="powerChart"></canvas>
+        </div>
+
+        <!-- Log -->
+        <div class="panel">
+            <h3>Log</h3>
+            <div class="log-box" id="logBox"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '';
+let sseSource = null;
+let chartData = { labels: [], data: [] };
+const MAX_POINTS = 500;
+
+// --- Chart ---
+const ctx = document.getElementById('powerChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Power',
+            data: [],
+            borderColor: '#4caf50',
+            backgroundColor: 'rgba(76,175,80,0.1)',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.2,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+            x: {
+                display: true,
+                ticks: { color: '#555', maxTicksLimit: 8, font: { size: 10 } },
+                grid: { color: '#1e2030' },
+            },
+            y: {
+                display: true,
+                ticks: { color: '#555', font: { size: 10 } },
+                grid: { color: '#1e2030' },
+                title: { display: true, text: 'Power', color: '#555', font: { size: 11 } },
+            }
+        },
+        plugins: {
+            legend: { display: false },
+        }
+    }
+});
+
+function addChartPoint(timestamp, power) {
+    const t = new Date(timestamp * 1000);
+    const label = t.toLocaleTimeString('en', { hour12: false }) + '.' + String(t.getMilliseconds()).padStart(3, '0');
+    chart.data.labels.push(label);
+    chart.data.datasets[0].data.push(power);
+    if (chart.data.labels.length > MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+    }
+    chart.update();
+}
+
+function clearChart() {
+    chart.data.labels = [];
+    chart.data.datasets[0].data = [];
+    chart.update();
+    log('Chart cleared');
+}
+
+// --- Logging ---
+function log(msg, type = '') {
+    const box = document.getElementById('logBox');
+    const cls = type === 'error' ? 'log-error' : type === 'ok' ? 'log-ok' : '';
+    const time = new Date().toLocaleTimeString('en', { hour12: false });
+    box.innerHTML += `<div class="${cls}">[${time}] ${msg}</div>`;
+    box.scrollTop = box.scrollHeight;
+}
+
+// --- API helpers ---
+async function api(method, path, body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    return data;
+}
+
+// --- Device ---
+async function scanDevices() {
+    try {
+        const devices = await api('GET', '/device/list');
+        const sel = document.getElementById('deviceSelect');
+        sel.innerHTML = '';
+        if (devices.length === 0) {
+            sel.innerHTML = '<option value="">No devices found</option>';
+            log('Scan: no devices found', 'error');
+        } else {
+            devices.forEach(d => {
+                sel.innerHTML += `<option value="${d}">${d}</option>`;
+            });
+            log(`Scan: found ${devices.length} device(s)`, 'ok');
+        }
+    } catch (e) { log('Scan error: ' + e.message, 'error'); }
+}
+
+async function connectDevice() {
+    const resource = document.getElementById('deviceSelect').value;
+    if (!resource) { log('No device selected', 'error'); return; }
+    try {
+        await api('POST', '/device/connect', { visa_resource: resource });
+        log('Connected to ' + resource, 'ok');
+        updateConnectionUI(true);
+        await loadDeviceInfo();
+        await refreshConfig();
+    } catch (e) { log('Connect error: ' + e.message, 'error'); }
+}
+
+async function disconnectDevice() {
+    try {
+        stopSSE();
+        await api('POST', '/device/disconnect');
+        log('Disconnected', 'ok');
+        updateConnectionUI(false);
+    } catch (e) { log('Disconnect error: ' + e.message, 'error'); }
+}
+
+function updateConnectionUI(connected) {
+    document.getElementById('statusDot').className = 'status-dot ' + (connected ? 'on' : 'off');
+    document.getElementById('statusText').textContent = connected ? 'Connected' : 'Disconnected';
+    document.getElementById('btnConnect').disabled = connected;
+    document.getElementById('btnDisconnect').disabled = !connected;
+    document.getElementById('deviceInfo').style.display = connected ? 'block' : 'none';
+}
+
+async function loadDeviceInfo() {
+    try {
+        const info = await api('GET', '/device/info');
+        document.getElementById('infoIdn').textContent = info.idn;
+        document.getElementById('infoSensor').textContent = info.sensor_info;
+        document.getElementById('infoWlRange').textContent = `${info.wavelength_range[0]} - ${info.wavelength_range[1]} nm`;
+        document.getElementById('infoPwrRange').textContent = `${info.power_range_limits[0].toExponential(2)} - ${info.power_range_limits[1].toExponential(2)} W`;
+    } catch (e) { log('Info error: ' + e.message, 'error'); }
+}
+
+// --- Config ---
+async function refreshConfig() {
+    try {
+        const cfg = await api('GET', '/config');
+        document.getElementById('cfgWavelength').value = cfg.wavelength;
+        document.getElementById('cfgAveraging').value = cfg.averaging;
+        document.getElementById('cfgUnit').value = cfg.power_unit.replace(/"/g, '');
+        document.getElementById('cfgRange').value = cfg.power_range;
+        document.getElementById('cfgAutoRange').checked = cfg.auto_range;
+        log('Config refreshed', 'ok');
+    } catch (e) { log('Config error: ' + e.message, 'error'); }
+}
+
+async function setWavelength() {
+    try {
+        const v = parseFloat(document.getElementById('cfgWavelength').value);
+        const r = await api('PUT', '/config/wavelength', { wavelength_nm: v });
+        log(`Wavelength set to ${r.wavelength_nm} nm`, 'ok');
+    } catch (e) { log('Set wavelength error: ' + e.message, 'error'); }
+}
+
+async function setAveraging() {
+    try {
+        const v = parseInt(document.getElementById('cfgAveraging').value);
+        const r = await api('PUT', '/config/averaging', { count: v });
+        log(`Averaging set to ${r.averaging}`, 'ok');
+    } catch (e) { log('Set averaging error: ' + e.message, 'error'); }
+}
+
+async function setUnit() {
+    try {
+        const v = document.getElementById('cfgUnit').value;
+        const r = await api('PUT', '/config/unit', { unit: v });
+        log(`Unit set to ${r.power_unit}`, 'ok');
+    } catch (e) { log('Set unit error: ' + e.message, 'error'); }
+}
+
+async function setRange() {
+    try {
+        const v = parseFloat(document.getElementById('cfgRange').value);
+        const r = await api('PUT', '/config/range', { power_range_w: v });
+        log(`Range set to ${r.power_range}`, 'ok');
+    } catch (e) { log('Set range error: ' + e.message, 'error'); }
+}
+
+async function setAutoRange() {
+    try {
+        const v = document.getElementById('cfgAutoRange').checked;
+        const r = await api('PUT', '/config/range', { auto_range: v });
+        log(`Auto range: ${r.auto_range}`, 'ok');
+    } catch (e) { log('Set auto range error: ' + e.message, 'error'); }
+}
+
+// --- Calibration ---
+async function startZero() {
+    try {
+        await api('POST', '/calibration/zero');
+        log('Zero calibration started', 'ok');
+        document.getElementById('zeroStatus').textContent = 'Zeroing...';
+    } catch (e) { log('Zero error: ' + e.message, 'error'); }
+}
+
+async function checkZeroStatus() {
+    try {
+        const r = await api('GET', '/calibration/status');
+        const msg = r.zeroing ? 'Zeroing in progress...' : 'Zero complete';
+        document.getElementById('zeroStatus').textContent = msg;
+        log('Zero status: ' + msg);
+    } catch (e) { log('Zero status error: ' + e.message, 'error'); }
+}
+
+// --- Measurement ---
+async function singleRead() {
+    try {
+        const r = await api('GET', '/measurement/power');
+        updatePowerDisplay(r.power, r.unit);
+        addChartPoint(r.timestamp, r.power);
+        log(`Single read: ${formatPower(r.power)} ${r.unit}`);
+    } catch (e) { log('Read error: ' + e.message, 'error'); }
+}
+
+async function startAcquisition() {
+    const interval = parseInt(document.getElementById('acqInterval').value);
+    try {
+        await api('POST', '/measurement/start', { interval_ms: interval });
+        log(`Acquisition started (${interval} ms)`, 'ok');
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('btnStop').disabled = false;
+        startSSE();
+    } catch (e) { log('Start error: ' + e.message, 'error'); }
+}
+
+async function stopAcquisition() {
+    try {
+        stopSSE();
+        await api('POST', '/measurement/stop');
+        log('Acquisition stopped', 'ok');
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnStop').disabled = true;
+    } catch (e) { log('Stop error: ' + e.message, 'error'); }
+}
+
+function startSSE() {
+    stopSSE();
+    sseSource = new EventSource(API + '/measurement/stream');
+    sseSource.addEventListener('power', (e) => {
+        const r = JSON.parse(e.data);
+        updatePowerDisplay(r.power, r.unit);
+        addChartPoint(r.timestamp, r.power);
+    });
+    sseSource.onerror = () => {
+        log('SSE connection error', 'error');
+    };
+}
+
+function stopSSE() {
+    if (sseSource) {
+        sseSource.close();
+        sseSource = null;
+    }
+}
+
+function formatPower(p) {
+    const abs = Math.abs(p);
+    if (abs === 0) return '0.000';
+    if (abs < 1e-9) return (p * 1e12).toFixed(3) + ' pW';
+    if (abs < 1e-6) return (p * 1e9).toFixed(3) + ' nW';
+    if (abs < 1e-3) return (p * 1e6).toFixed(3) + ' uW';
+    if (abs < 1) return (p * 1e3).toFixed(3) + ' mW';
+    return p.toFixed(6) + ' W';
+}
+
+function updatePowerDisplay(power, unit) {
+    const el = document.getElementById('powerValue');
+    const uel = document.getElementById('powerUnit');
+    if (unit.replace(/"/g, '').toUpperCase() === 'DBM') {
+        el.textContent = power.toFixed(3);
+        uel.textContent = 'dBm';
+    } else {
+        el.textContent = formatPower(power).replace(/ [a-zA-Z]+$/, '');
+        const suffix = formatPower(power).match(/ [a-zA-Z]+$/);
+        uel.textContent = suffix ? suffix[0].trim() : 'W';
+    }
+}
+
+// --- Init ---
+window.addEventListener('load', async () => {
+    log('PM100D Web GUI loaded');
+    try {
+        const st = await api('GET', '/device/status');
+        updateConnectionUI(st.connected);
+        if (st.connected) {
+            await loadDeviceInfo();
+            await refreshConfig();
+        }
+    } catch (e) { log('Init error: ' + e.message, 'error'); }
+});
+</script>
+</body>
+</html>

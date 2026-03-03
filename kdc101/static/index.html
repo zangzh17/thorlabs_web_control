@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDC101 DC Servo Controller</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e0e0e0; }
+
+        .header {
+            background: #1a1d27;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2a2d3a;
+        }
+        .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            display: inline-block; margin-right: 8px;
+        }
+        .status-dot.on { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+        .status-dot.off { background: #666; }
+
+        .container { display: grid; grid-template-columns: 340px 1fr; gap: 16px; padding: 16px; height: calc(100vh - 60px); }
+
+        .sidebar { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+        .panel {
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .panel h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: #f59e0b; color: #fff; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-secondary { background: #374151; color: #e0e0e0; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+
+        select, input {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 100%;
+        }
+        select:focus, input:focus { outline: none; border-color: #3b82f6; }
+
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+
+        .position-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .position-value {
+            font-size: 48px;
+            font-weight: 700;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: #3b82f6;
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        .position-unit { font-size: 18px; color: #888; margin-top: 4px; }
+
+        .status-indicators {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+        .indicator .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #333;
+        }
+        .indicator .dot.active { background: #4caf50; box-shadow: 0 0 4px #4caf50; }
+        .indicator .dot.warn { background: #f59e0b; box-shadow: 0 0 4px #f59e0b; }
+        .indicator .dot.error { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
+
+        .main-area { display: flex; flex-direction: column; gap: 12px; }
+
+        .chart-container {
+            flex: 1;
+            min-height: 250px;
+            position: relative;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 12px;
+        }
+        .info-grid .label { color: #666; }
+        .info-grid .value { color: #ccc; text-align: right; font-family: monospace; }
+
+        .log-box {
+            background: #111318;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 120px;
+            overflow-y: auto;
+            color: #888;
+        }
+        .log-box .log-error { color: #ef4444; }
+        .log-box .log-ok { color: #22c55e; }
+
+        .jog-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+        .jog-btn {
+            width: 56px; height: 44px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .stop-btn {
+            width: 80px; height: 44px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>KDC101 DC Servo Controller</h1>
+    <div id="statusBar">
+        <span class="status-dot off" id="statusDot"></span>
+        <span id="statusText">Disconnected</span>
+    </div>
+</div>
+
+<div class="container">
+    <div class="sidebar">
+        <!-- Device Panel -->
+        <div class="panel">
+            <h3>Device</h3>
+            <div class="field">
+                <label>APT Device (D2XX)</label>
+                <select id="deviceSelect"><option value="">-- Scan first --</option></select>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="scanDevices()">Scan</button>
+                <button class="btn btn-success" id="btnConnect" onclick="connectDevice()">Connect</button>
+                <button class="btn btn-danger" id="btnDisconnect" onclick="disconnectDevice()" disabled>Disconnect</button>
+            </div>
+            <div id="deviceInfo" style="margin-top: 12px; display: none;">
+                <div class="info-grid">
+                    <span class="label">Model</span><span class="value" id="infoModel">-</span>
+                    <span class="label">S/N</span><span class="value" id="infoSerial">-</span>
+                    <span class="label">Firmware</span><span class="value" id="infoFirmware">-</span>
+                    <span class="label">HW Version</span><span class="value" id="infoHwVer">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Motion Panel -->
+        <div class="panel">
+            <h3>Motion Control</h3>
+            <div class="btn-row" style="margin-top: 0;">
+                <button class="btn btn-warning" style="flex: 1;" onclick="homeStage()">Home</button>
+                <button class="btn btn-danger stop-btn" onclick="stopMotion()">STOP</button>
+            </div>
+
+            <div class="field" style="margin-top: 12px;">
+                <label>Move Absolute (mm)</label>
+                <div class="btn-row">
+                    <input type="number" id="moveAbsPos" value="5.0" step="0.1">
+                    <button class="btn btn-primary" onclick="moveAbsolute()">Go</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Move Relative (mm)</label>
+                <div class="btn-row">
+                    <input type="number" id="moveRelDist" value="1.0" step="0.1">
+                    <button class="btn btn-primary" onclick="moveRelative(1)">+ Fwd</button>
+                    <button class="btn btn-primary" onclick="moveRelative(-1)">- Rev</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 12px;">
+                <label style="font-size: 12px; color: #888; margin-bottom: 8px; display: block;">Jog</label>
+                <div class="jog-controls">
+                    <button class="btn btn-secondary jog-btn" onclick="jogReverse()" title="Jog Reverse">&larr;</button>
+                    <button class="btn btn-danger stop-btn" onclick="stopMotionImmediate()">E-STOP</button>
+                    <button class="btn btn-secondary jog-btn" onclick="jogForward()" title="Jog Forward">&rarr;</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Panel -->
+        <div class="panel">
+            <h3>Configuration</h3>
+            <div class="field">
+                <label>Max Velocity (mm/s)</label>
+                <input type="number" id="cfgVelocity" value="10.0" step="0.1">
+            </div>
+            <div class="field">
+                <label>Acceleration (mm/s2)</label>
+                <input type="number" id="cfgAccel" value="10.0" step="0.1">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" style="flex:1;" onclick="setVelocityParams()">Apply</button>
+                <button class="btn btn-secondary" onclick="refreshVelocityParams()">Refresh</button>
+            </div>
+
+            <div class="field" style="margin-top: 12px;">
+                <label>Encoder Counts / mm</label>
+                <div class="btn-row">
+                    <input type="number" id="cfgCounts" value="34555" step="1">
+                    <button class="btn btn-primary" onclick="setStageConfig()">Set</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Polling Panel -->
+        <div class="panel">
+            <h3>Position Polling</h3>
+            <div class="field">
+                <label>Interval (ms)</label>
+                <input type="number" id="pollInterval" value="100" min="50" step="50">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-success" id="btnPollStart" onclick="startPolling()">Start</button>
+                <button class="btn btn-danger" id="btnPollStop" onclick="stopPolling()" disabled>Stop</button>
+                <button class="btn btn-secondary" onclick="readStatus()">Read Once</button>
+            </div>
+            <div class="btn-row" style="margin-top: 4px;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="clearChart()">Clear Chart</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-area">
+        <!-- Position Display -->
+        <div class="panel position-display">
+            <div class="position-value" id="positionValue">---</div>
+            <div class="position-unit">mm</div>
+            <div class="status-indicators" id="statusIndicators">
+                <div class="indicator"><span class="dot" id="indHomed"></span>Homed</div>
+                <div class="indicator"><span class="dot" id="indMoving"></span>Moving</div>
+                <div class="indicator"><span class="dot" id="indFwdLim"></span>Fwd Limit</div>
+                <div class="indicator"><span class="dot" id="indRevLim"></span>Rev Limit</div>
+                <div class="indicator"><span class="dot" id="indHoming"></span>Homing</div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="panel chart-container">
+            <canvas id="posChart"></canvas>
+        </div>
+
+        <!-- Log -->
+        <div class="panel">
+            <h3>Log</h3>
+            <div class="log-box" id="logBox"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '';
+let sseSource = null;
+const MAX_POINTS = 500;
+
+// --- Chart ---
+const ctx = document.getElementById('posChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Position',
+            data: [],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59,130,246,0.1)',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.2,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+            x: {
+                display: true,
+                ticks: { color: '#555', maxTicksLimit: 8, font: { size: 10 } },
+                grid: { color: '#1e2030' },
+            },
+            y: {
+                display: true,
+                ticks: { color: '#555', font: { size: 10 } },
+                grid: { color: '#1e2030' },
+                title: { display: true, text: 'Position (mm)', color: '#555', font: { size: 11 } },
+            }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+
+function addChartPoint(timestamp, position) {
+    const t = new Date(timestamp * 1000);
+    const label = t.toLocaleTimeString('en', { hour12: false }) + '.' + String(t.getMilliseconds()).padStart(3, '0');
+    chart.data.labels.push(label);
+    chart.data.datasets[0].data.push(position);
+    if (chart.data.labels.length > MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+    }
+    chart.update();
+}
+
+function clearChart() {
+    chart.data.labels = [];
+    chart.data.datasets[0].data = [];
+    chart.update();
+    log('Chart cleared');
+}
+
+// --- Logging ---
+function log(msg, type = '') {
+    const box = document.getElementById('logBox');
+    const cls = type === 'error' ? 'log-error' : type === 'ok' ? 'log-ok' : '';
+    const time = new Date().toLocaleTimeString('en', { hour12: false });
+    box.innerHTML += `<div class="${cls}">[${time}] ${msg}</div>`;
+    box.scrollTop = box.scrollHeight;
+}
+
+// --- API helpers ---
+async function api(method, path, body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    return data;
+}
+
+// --- Device ---
+async function scanDevices() {
+    try {
+        const devices = await api('GET', '/device/list');
+        const sel = document.getElementById('deviceSelect');
+        sel.innerHTML = '';
+        if (devices.length === 0) {
+            sel.innerHTML = '<option value="">No devices found</option>';
+            log('Scan: no D2XX devices found', 'error');
+        } else {
+            devices.forEach(d => {
+                sel.innerHTML += `<option value="${d.serial_number}">${d.serial_number} - ${d.description}</option>`;
+            });
+            log(`Scan: found ${devices.length} device(s)`, 'ok');
+        }
+    } catch (e) { log('Scan error: ' + e.message, 'error'); }
+}
+
+async function connectDevice() {
+    const sn = document.getElementById('deviceSelect').value;
+    if (!sn) { log('No device selected', 'error'); return; }
+    try {
+        await api('POST', '/device/connect', { serial_number: sn });
+        log('Connected to S/N ' + sn, 'ok');
+        updateConnectionUI(true);
+        await loadDeviceInfo();
+        await refreshVelocityParams();
+        await refreshStageConfig();
+    } catch (e) { log('Connect error: ' + e.message, 'error'); }
+}
+
+async function disconnectDevice() {
+    try {
+        stopSSE();
+        await api('POST', '/device/disconnect');
+        log('Disconnected', 'ok');
+        updateConnectionUI(false);
+    } catch (e) { log('Disconnect error: ' + e.message, 'error'); }
+}
+
+function updateConnectionUI(connected) {
+    document.getElementById('statusDot').className = 'status-dot ' + (connected ? 'on' : 'off');
+    document.getElementById('statusText').textContent = connected ? 'Connected' : 'Disconnected';
+    document.getElementById('btnConnect').disabled = connected;
+    document.getElementById('btnDisconnect').disabled = !connected;
+    document.getElementById('deviceInfo').style.display = connected ? 'block' : 'none';
+}
+
+async function loadDeviceInfo() {
+    try {
+        const info = await api('GET', '/device/info');
+        document.getElementById('infoModel').textContent = info.model;
+        document.getElementById('infoSerial').textContent = info.serial_number;
+        document.getElementById('infoFirmware').textContent = info.firmware_version;
+        document.getElementById('infoHwVer').textContent = info.hw_version;
+    } catch (e) { log('Info error: ' + e.message, 'error'); }
+}
+
+// --- Motion ---
+async function homeStage() {
+    try {
+        await api('POST', '/motion/home');
+        log('Homing started...', 'ok');
+    } catch (e) { log('Home error: ' + e.message, 'error'); }
+}
+
+async function moveAbsolute() {
+    const pos = parseFloat(document.getElementById('moveAbsPos').value);
+    try {
+        await api('POST', '/motion/move_absolute', { position_mm: pos });
+        log(`Moving to ${pos} mm...`, 'ok');
+    } catch (e) { log('Move error: ' + e.message, 'error'); }
+}
+
+function moveRelative(sign) {
+    const dist = parseFloat(document.getElementById('moveRelDist').value) * sign;
+    api('POST', '/motion/move_relative', { distance_mm: dist })
+        .then(() => log(`Moving ${dist > 0 ? '+' : ''}${dist} mm...`, 'ok'))
+        .catch(e => log('Move error: ' + e.message, 'error'));
+}
+
+async function jogForward() {
+    try {
+        await api('POST', '/motion/jog', { direction: 'forward' });
+        log('Jogging forward', 'ok');
+    } catch (e) { log('Jog error: ' + e.message, 'error'); }
+}
+
+async function jogReverse() {
+    try {
+        await api('POST', '/motion/jog', { direction: 'reverse' });
+        log('Jogging reverse', 'ok');
+    } catch (e) { log('Jog error: ' + e.message, 'error'); }
+}
+
+async function stopMotion() {
+    try {
+        await api('POST', '/motion/stop?immediate=false');
+        log('Stop (profiled)', 'ok');
+    } catch (e) { log('Stop error: ' + e.message, 'error'); }
+}
+
+async function stopMotionImmediate() {
+    try {
+        await api('POST', '/motion/stop?immediate=true');
+        log('E-STOP (immediate)', 'ok');
+    } catch (e) { log('E-Stop error: ' + e.message, 'error'); }
+}
+
+// --- Status reading ---
+async function readStatus() {
+    try {
+        const st = await api('GET', '/device/status');
+        if (st.position_mm !== null) {
+            updatePositionDisplay(st.position_mm);
+            updateIndicators(st);
+        }
+        log(`Position: ${st.position_mm !== null ? st.position_mm.toFixed(4) : '?'} mm | Homed: ${st.is_homed} | Moving: ${st.is_moving}`);
+    } catch (e) { log('Status error: ' + e.message, 'error'); }
+}
+
+// --- Config ---
+async function refreshVelocityParams() {
+    try {
+        const p = await api('GET', '/config/velocity');
+        document.getElementById('cfgVelocity').value = p.max_velocity_mm_s.toFixed(2);
+        document.getElementById('cfgAccel').value = p.acceleration_mm_s2.toFixed(2);
+        log('Velocity params refreshed', 'ok');
+    } catch (e) { log('Velocity config error: ' + e.message, 'error'); }
+}
+
+async function setVelocityParams() {
+    const vel = parseFloat(document.getElementById('cfgVelocity').value);
+    const acc = parseFloat(document.getElementById('cfgAccel').value);
+    try {
+        await api('PUT', '/config/velocity', { max_velocity_mm_s: vel, acceleration_mm_s2: acc });
+        log(`Velocity: ${vel} mm/s, Accel: ${acc} mm/s2`, 'ok');
+    } catch (e) { log('Set velocity error: ' + e.message, 'error'); }
+}
+
+async function refreshStageConfig() {
+    try {
+        const c = await api('GET', '/config/stage');
+        document.getElementById('cfgCounts').value = c.counts_per_mm;
+    } catch (e) { /* ignore */ }
+}
+
+async function setStageConfig() {
+    const c = parseFloat(document.getElementById('cfgCounts').value);
+    try {
+        await api('PUT', '/config/stage', { counts_per_mm: c });
+        log(`Counts/mm set to ${c}`, 'ok');
+    } catch (e) { log('Set counts error: ' + e.message, 'error'); }
+}
+
+// --- Polling & SSE ---
+async function startPolling() {
+    const interval = parseInt(document.getElementById('pollInterval').value);
+    try {
+        await api('POST', '/polling/start', { interval_ms: interval });
+        log(`Polling started (${interval} ms)`, 'ok');
+        document.getElementById('btnPollStart').disabled = true;
+        document.getElementById('btnPollStop').disabled = false;
+        startSSE();
+    } catch (e) { log('Polling start error: ' + e.message, 'error'); }
+}
+
+async function stopPolling() {
+    try {
+        stopSSE();
+        await api('POST', '/polling/stop');
+        log('Polling stopped', 'ok');
+        document.getElementById('btnPollStart').disabled = false;
+        document.getElementById('btnPollStop').disabled = true;
+    } catch (e) { log('Polling stop error: ' + e.message, 'error'); }
+}
+
+function startSSE() {
+    stopSSE();
+    sseSource = new EventSource(API + '/polling/stream');
+    sseSource.addEventListener('position', (e) => {
+        const r = JSON.parse(e.data);
+        updatePositionDisplay(r.position_mm);
+        addChartPoint(r.timestamp, r.position_mm);
+        // Decode status bits for indicators
+        const bits = r.status_bits;
+        updateIndicators({
+            is_homed: !!(bits & 0x00000400),
+            is_moving: !!(bits & (0x10 | 0x20 | 0x40 | 0x80 | 0x200)),
+            is_homing: !!(bits & 0x00000200),
+            fwd_limit: !!(bits & 0x01),
+            rev_limit: !!(bits & 0x02),
+        });
+    });
+    sseSource.onerror = () => {
+        log('SSE connection error', 'error');
+    };
+}
+
+function stopSSE() {
+    if (sseSource) {
+        sseSource.close();
+        sseSource = null;
+    }
+}
+
+function updatePositionDisplay(pos_mm) {
+    document.getElementById('positionValue').textContent = pos_mm.toFixed(4);
+}
+
+function updateIndicators(st) {
+    setDot('indHomed', st.is_homed ? 'active' : '');
+    setDot('indMoving', st.is_moving ? 'warn' : '');
+    setDot('indHoming', st.is_homing ? 'warn' : '');
+    setDot('indFwdLim', st.fwd_limit ? 'error' : '');
+    setDot('indRevLim', st.rev_limit ? 'error' : '');
+}
+
+function setDot(id, cls) {
+    const el = document.getElementById(id);
+    el.className = 'dot' + (cls ? ' ' + cls : '');
+}
+
+// --- Init ---
+window.addEventListener('load', async () => {
+    log('KDC101 Web GUI loaded');
+    try {
+        const st = await api('GET', '/device/status');
+        updateConnectionUI(st.connected);
+        if (st.connected) {
+            await loadDeviceInfo();
+            await refreshVelocityParams();
+            await refreshStageConfig();
+        }
+    } catch (e) { log('Init error: ' + e.message, 'error'); }
+});
+</script>
+</body>
+</html>
