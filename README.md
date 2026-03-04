@@ -90,6 +90,64 @@ Both devices require the WinUSB driver installed via [Zadig](https://zadig.akeo.
 
 > **Warning**: Replacing the driver is not easily reversible. The original driver (NI-VISA for PM100D, FTDI D2XX for KDC101) must be manually reinstalled if you want to revert. Applications that depend on the original driver (e.g., Thorlabs Kinesis, NI MAX) will not work after the replacement (will only affect this computer).
 
+## Secondary Development Guide
+
+When adapting this project's WebUSB code into another application, the following pitfalls are commonly encountered.
+
+### USBTMC (PM100D): `transferOut` hangs after `claimInterface`
+
+**Symptom:** `device.transferOut()` never resolves — the promise hangs forever with no error.
+
+**Cause:** Bulk endpoints can be left in a stalled state from previous incomplete connections (browser tab closed mid-transfer, failed init, etc.). This project works on a fresh page load with no prior stale state, but integrating into a larger app often hits this.
+
+**Fix:** After `claimInterface()`, call `clearHalt` on both endpoints:
+
+```js
+await device.claimInterface(ifaceNum);
+try { await device.clearHalt('out', epOut); } catch {}
+try { await device.clearHalt('in', epIn); } catch {}
+```
+
+Also wrap `transferOut` / `transferIn` with `Promise.race` timeouts so hangs become errors instead of silent freezes.
+
+### USBTMC: Do NOT use an AsyncMutex around query()
+
+**Symptom:** First `query()` call hangs at mutex `acquire()` even though nothing else has locked it.
+
+**Cause:** Not fully diagnosed — possibly a subtle JS async scheduling issue. This project uses no mutex and works fine.
+
+**Fix:** Remove the mutex. Ensure callers don't fire concurrent queries (e.g., use a sequential loop with `setTimeout` instead of `setInterval` for polling).
+
+### FTDI/APT (KDC101): Synchronous read doesn't work
+
+**Symptom:** `transferIn` returns incomplete data; parsing short buffers causes `"Offset is outside the bounds of the DataView"`.
+
+**Cause:** FTDI chips fragment data across multiple USB packets, each prefixed with a 2-byte modem status header. A single `transferIn` call doesn't guarantee a complete APT message.
+
+**Fix:** Use a background `_readLoop()` that continuously reads FTDI packets, strips the 2-byte headers, and appends payload to an `_rxBuffer`. Then parse complete APT messages from the buffer with `recvMessage()` / `waitForMessage()`.
+
+Required FTDI init sequence (missing from naive implementations):
+
+1. Reset device
+2. Set baud rate (115200)
+3. Set line properties (8N1)
+4. Set flow control (none)
+5. Purge RX buffer
+6. Purge TX buffer
+7. Set DTR high
+8. Set RTS high
+9. Send `HW_NO_FLASH_PROGRAMMING` (0x0018) before channel enable
+
+### KDC101: `MOT_REQ_POSCOUNTER` may not get a response
+
+**Symptom:** `getPosition()` using `MOT_REQ_POSCOUNTER` (0x0410) times out — no `MOT_GET_POSCOUNTER` (0x0411) response.
+
+**Fix:** Use `MOT_REQ_DCSTATUSUPDATE` (0x0490) instead, which returns position as part of the status packet and is more reliably supported across firmware versions.
+
+### Both devices need WinUSB driver via Zadig
+
+On Windows, both PM100D and KDC101 need their default drivers replaced with WinUSB using [Zadig](https://zadig.akeo.ie/). Without this, `claimInterface()` will hang or fail. FTDI devices and USBTMC devices each need separate Zadig treatment. See [Zadig Setup](#zadig-setup) above for details.
+
 ## Project Structure
 
 ```
